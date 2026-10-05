@@ -1,0 +1,24 @@
+{
+  "name": "netcrimp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NetCrimp - game edukasi instalasi & pengkabelan jaringan untuk SMK TKJ. Sumber dipecah per level, dibangun menjadi satu file HTML.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "open": "node build.mjs --open",
+    "verify": "node tools/verify.mjs",
+    "smoke": "node tools/smoke.mjs --only",
+    "play2": "node tools/play2.mjs",
+    "shot": "node tools/shot.mjs",
+    "peek": "node tools/peek.mjs",
+    "sapu": "node tools/sapu.mjs",
+    "probe2": "node tools/probe2.mjs",
+    "asing": "node tools/cari-asing.mjs",
+    "test": "node build.mjs && node tools/verify.mjs && node tools/cari-asing.mjs && node tools/smoke.mjs && node tools/play2.mjs",
+    "level1": "node build.mjs && node build.mjs --open"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,2954 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NetCrimp — Simulasi Instalasi &amp; Pengkabelan Jaringan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eaf0f7;--fg:#13202f;--muted:#57687b;--card:#fff;--line:#cfd9e5;--accent:#0b7bb5;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a121d;--fg:#e6eef7;--muted:#93a6ba;--card:#111d2c;--line:#22344a;--accent:#38bdf8}}
+:root[data-theme="dark"]{--bg:#0a121d;--fg:#e6eef7;--muted:#93a6ba;--card:#111d2c;--line:#22344a;--accent:#38bdf8}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:'Nunito',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:12px 12px 20px}
+header{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;margin-bottom:10px}
+h1{font-family:'Fredoka','Nunito',system-ui,sans-serif;font-weight:600;font-size:19px;margin:0;letter-spacing:.2px}
+h1 small{display:block;font-family:'Nunito',system-ui,sans-serif;font-weight:600;font-size:12.5px;color:var(--muted);letter-spacing:0}
+.who{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--muted)}
+.who input{font:inherit;font-weight:700;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:210px;max-width:52vw}
+.who input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+canvas{display:block;width:100%;height:auto;aspect-ratio:960/600;border-radius:14px;border:1px solid var(--line);background:#0c1726;touch-action:none;user-select:none;-webkit-user-select:none}
+.note{margin:10px 2px 0;font-size:13px;color:var(--muted);line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>NetCrimp<small>Game edukasi instalasi &amp; pengkabelan jaringan untuk siswa SMK TKJ</small></h1>
+<label class="who">Nama siswa <input id="nama" type="text" maxlength="30" placeholder="Isi sebelum bermain" autocomplete="off"></label>
+</header>
+<canvas id="c" width="960" height="600" aria-label="Area permainan NetCrimp"></canvas>
+<p class="note">Kontrol: seret dan lepas dengan mouse atau sentuhan. Progres dan log hasil tersimpan di browser ini.</p>
+</div>
+<script>
+(() => {
+'use strict';
+const W = 960, H = 600;
+const cv = document.getElementById('c');
+let ctx = cv.getContext('2d');
+const FONT_H = '"Fredoka","Nunito",system-ui,sans-serif', FONT_B = '"Nunito",system-ui,sans-serif';
+const C = { panel: '#182a40', panel2: '#20364f', line: '#33506f', text: '#eaf2fb', mute: '#9db2c8', acc: '#38bdf8', ok: '#34d399', bad: '#f87171', warn: '#fbbf24', gold: '#d4a72c' };
+
+/* ---------- penyimpanan ---------- */
+const KEY = 'netcrimp_v1';
+let save = { unlocked: 1, stars: [0,0,0,0,0], best: [0,0,0,0,0], log: [], teacher: false, board: [], board2: [], badges: [], l2: {} };
+try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && Array.isArray(s.stars)) save = Object.assign(save, s); } catch (e) {}
+if (!Array.isArray(save.board2)) save.board2 = [];
+if (!Array.isArray(save.badges)) save.badges = [];
+if (!save.l2 || typeof save.l2 !== 'object') save.l2 = {};
+if (!save.l2.grafis) save.l2.grafis = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || /Android|iPhone|iPad/i.test(navigator.userAgent) ? 'hemat' : 'normal';
+if (typeof save.l2.mudah !== 'boolean') save.l2.mudah = false;
+if (typeof save.l2.sound !== 'boolean') save.l2.sound = true;
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }
+const nameEl = document.getElementById('nama');
+try { nameEl.value = localStorage.getItem(KEY + '_nama') || ''; } catch (e) {}
+nameEl.addEventListener('input', () => { try { localStorage.setItem(KEY + '_nama', nameEl.value); } catch (e) {} });
+
+/* ---------- suara ---------- */
+const SND = {
+    ctx: null,
+    on() { return save.l2.sound !== false; },
+    boot() { if (this.ctx) return; try { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; this.ctx = new AC(); } catch (e) { this.ctx = null; } },
+    tone(f, dur, type, vol, f2) {
+        if (!this.on()) return; this.boot(); const c = this.ctx; if (!c) return;
+        if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = type || 'sine'; o.frequency.setValueAtTime(f, c.currentTime);
+        if (f2) o.frequency.exponentialRampToValueAtTime(Math.max(40, f2), c.currentTime + dur);
+        g.gain.setValueAtTime(0.0001, c.currentTime);
+        g.gain.exponentialRampToValueAtTime(vol == null ? .12 : vol, c.currentTime + .012);
+        g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + dur);
+        o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + dur + .02);
+    },
+    noise(dur, vol, hp) {
+        if (!this.on()) return; this.boot(); const c = this.ctx; if (!c) return;
+        if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
+        const n = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+        const s = c.createBufferSource(); s.buffer = buf;
+        const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp || 900;
+        const g = c.createGain(); g.gain.value = vol == null ? .16 : vol;
+        s.connect(f); f.connect(g); g.connect(c.destination); s.start();
+    },
+    potong() { this.noise(.14, .22, 1400); this.tone(180, .1, 'square', .05, 90); },
+    kupas() { this.noise(.30, .14, 2200); this.tone(520, .16, 'sawtooth', .03, 260); },
+    crimp() { this.noise(.07, .30, 2600); this.tone(120, .09, 'square', .14, 60); },
+    klik() { this.tone(880, .05, 'triangle', .08); },
+    benar() { this.tone(660, .10, 'sine', .12); setTimeout(() => this.tone(990, .16, 'sine', .12), 90); },
+    salah() { this.tone(220, .20, 'sawtooth', .10, 120); }
+};
+
+/* ---------- pemuat Three.js ---------- */
+const THREE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+const threeState = { status: 'new', waiters: [] };
+function webglOK() { try { const c = document.createElement('canvas'); return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl'))); } catch (e) { return false; } }
+function loadThree(cb) {
+    if (window.THREE && window.THREE.WebGLRenderer) { cb(null); return; }
+    threeState.waiters.push(cb);
+    if (threeState.status === 'loading' || threeState.status === 'ok') return;
+    threeState.status = 'loading';
+    const s = document.createElement('script'); let done = false;
+    const finish = err => { if (done) return; done = true; clearTimeout(timer); threeState.status = err ? 'fail' : 'ok'; const list = threeState.waiters.slice(); threeState.waiters.length = 0; list.forEach(f => f(err || null)); };
+    const timer = setTimeout(() => finish(new Error('timeout')), 11000);
+    s.src = THREE_URL; s.async = true;
+    s.onload = () => finish(window.THREE && window.THREE.WebGLRenderer ? null : new Error('no-three'));
+    s.onerror = () => finish(new Error('network'));
+    document.head.appendChild(s);
+}
+
+/* ---------- kanvas ---------- */
+function fit() { const r = cv.getBoundingClientRect(); const d = Math.min(window.devicePixelRatio || 1, 2); cv.width = Math.max(1, Math.round(r.width * d)); cv.height = Math.max(1, Math.round(r.width * H / W * d)); }
+window.addEventListener('resize', fit); fit();
+
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function txt(s, x, y, o) { o = o || {}; ctx.font = `${o.w || 700} ${o.s || 16}px ${o.f || FONT_B}`; ctx.fillStyle = o.c || C.text; ctx.textAlign = o.a || 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(String(s), x, y); }
+function wrapLines(s, maxW, size, weight) { ctx.font = `${weight || 600} ${size}px ${FONT_B}`; const out = []; for (const p of String(s).split('\n')) { let line = ''; for (const w of p.split(' ')) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t; } out.push(line); } return out; }
+function para(s, x, y, maxW, lh, o) { o = Object.assign({ w: 600, s: 14 }, o || {}); const L = wrapLines(s, maxW, o.s, o.w); L.forEach((l, i) => txt(l, x, y + i * lh, o)); return L.length; }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } return a; }
+const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const inR = (p, r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* ---------- input & tombol ---------- */
+let mouse = { x: -1, y: -1 }, btns = [], hoverBtn = false, scene = null, toast = null, shake = 0;
+const over = (x, y, w, h) => mouse.x >= x && mouse.x <= x + w && mouse.y >= y && mouse.y <= y + h;
+function hit(x, y, w, h, fn) { btns.push({ x, y, w, h, fn }); }
+function btn(x, y, w, h, label, fn, o) {
+    o = o || {}; const dis = !!o.disabled; const hov = !dis && over(x, y, w, h); if (hov) hoverBtn = true;
+    rr(x, y, w, h, o.r || 10); ctx.fillStyle = dis ? '#22344a' : (o.color || C.acc); ctx.fill();
+    if (hov) { rr(x, y, w, h, o.r || 10); ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fill(); }
+    txt(label, x + w / 2, y + h / 2 + (o.s || 16) * 0.35, { s: o.s || 16, a: 'center', w: 800, c: dis ? '#5f7389' : (o.tc || '#06131f') });
+    if (!dis) hit(x, y, w, h, fn);
+}
+function say(msg, kind) { toast = { msg, kind: kind || 'info', t: performance.now() }; }
+function drawToast() {
+    if (!toast) return; const age = performance.now() - toast.t; if (age > 4600) { toast = null; return; }
+    const col = toast.kind === 'bad' ? C.bad : toast.kind === 'ok' ? C.ok : C.acc;
+    const L = wrapLines(toast.msg, 690, 15, 700); const w = 740, h = L.length * 20 + 16, x = (W - w) / 2, y = H - h - 8;
+    ctx.save(); ctx.globalAlpha = age > 4100 ? Math.max(0, (4600 - age) / 500) : 1;
+    rr(x, y, w, h, 10); ctx.fillStyle = 'rgba(6,14,26,.95)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.stroke();
+    L.forEach((l, i) => txt(l, x + w / 2, y + 24 + i * 20, { s: 15, a: 'center', c: C.text }));
+    ctx.restore();
+}
+function P(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; }
+cv.addEventListener('pointerdown', e => {
+    e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    mouse = P(e);
+    for (let i = btns.length - 1; i >= 0; i--) { const b = btns[i]; if (inR(mouse, b)) { b.fn(); return; } }
+    if (scene.down) scene.down(mouse);
+});
+cv.addEventListener('pointermove', e => { mouse = P(e); if (scene.move) scene.move(mouse); });
+function endPtr(e) { mouse = P(e); if (scene.up) scene.up(mouse); if (e.pointerType === 'touch') mouse = { x: -1, y: -1 }; }
+cv.addEventListener('pointerup', endPtr);
+cv.addEventListener('pointercancel', endPtr);
+
+/* ---------- gambar umum ---------- */
+function bg(wires) {
+    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#13233a'); g.addColorStop(1, '#0b1523'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(120,160,210,.06)'; ctx.lineWidth = 1; ctx.beginPath();
+    for (let x = 0; x <= W; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, H); } for (let y = 0; y <= H; y += 40) { ctx.moveTo(0, y); ctx.lineTo(W, y); } ctx.stroke();
+    if (wires) {
+        const t = performance.now() / 1000; ctx.lineCap = 'round';
+        for (let k = 0; k < 8; k++) {
+            ctx.beginPath(); for (let x = -10; x <= W + 10; x += 14) { const y = 505 + k * 8 + Math.sin(x / 95 + t * 1.1 + k * .45) * 11; if (x < 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+            const id = T568B[k], d = WC[id]; ctx.lineWidth = 5; ctx.strokeStyle = d.c; ctx.setLineDash(d.st ? [10, 8] : []); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+    }
+}
+function deskBG() {
+    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#14253c'); g.addColorStop(1, '#0b1523'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(120,160,210,.06)'; ctx.lineWidth = 1; ctx.beginPath();
+    for (let x = 0; x <= W; x += 40) { ctx.moveTo(x, 54); ctx.lineTo(x, H); } for (let y = 54; y <= H; y += 40) { ctx.moveTo(0, y); ctx.lineTo(W, y); } ctx.stroke();
+}
+function tickIcon(x, y, s, c) { ctx.save(); ctx.beginPath(); ctx.moveTo(x - s * .5, y); ctx.lineTo(x - s * .15, y + s * .4); ctx.lineTo(x + s * .55, y - s * .4); ctx.strokeStyle = c; ctx.lineWidth = Math.max(2, s * .22); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); ctx.restore(); }
+function crossIcon(x, y, s, c) { ctx.save(); ctx.beginPath(); ctx.moveTo(x - s * .4, y - s * .4); ctx.lineTo(x + s * .4, y + s * .4); ctx.moveTo(x + s * .4, y - s * .4); ctx.lineTo(x - s * .4, y + s * .4); ctx.strokeStyle = c; ctx.lineWidth = Math.max(2, s * .22); ctx.lineCap = 'round'; ctx.stroke(); ctx.restore(); }
+function star(cx, cy, r, on) { ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? r * .45 : r; ctx.lineTo(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad); } ctx.closePath(); ctx.fillStyle = on ? C.warn : '#2a3a4e'; ctx.fill(); ctx.strokeStyle = on ? '#b7791f' : '#3a4d64'; ctx.lineWidth = 1.5; ctx.stroke(); }
+function lock(x, y, s) { ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.lineWidth = 5; ctx.strokeStyle = '#4b6079'; ctx.beginPath(); ctx.arc(0, -8, 11, Math.PI, 0); ctx.stroke(); rr(-16, -8, 32, 26, 5); ctx.fillStyle = '#4b6079'; ctx.fill(); ctx.restore(); }
+
+/* ---------- warna kabel ---------- */
+const WC = {
+    wo: { n: 'Putih-Oranye', c: '#f97316', st: 1 }, o: { n: 'Oranye', c: '#f97316' },
+    wg: { n: 'Putih-Hijau', c: '#16a34a', st: 1 }, b: { n: 'Biru', c: '#2563eb' },
+    wb: { n: 'Putih-Biru', c: '#2563eb', st: 1 }, g: { n: 'Hijau', c: '#16a34a' },
+    wbr: { n: 'Putih-Coklat', c: '#8b5a2b', st: 1 }, br: { n: 'Coklat', c: '#8b5a2b' },
+    sarung_tangan: { n: 'Sarung Tangan', c: '#dc2626', st: 0 }
+};
+const T568B = ['wo', 'o', 'wg', 'b', 'wb', 'g', 'wbr', 'br'];
+const T568A = ['wg', 'g', 'wo', 'b', 'wb', 'o', 'wbr', 'br'];
+function drawWire(x, y, w, h, id, hz) {
+    const d = WC[id], r = Math.min(w, h) / 2.4;
+    rr(x, y, w, h, r); ctx.fillStyle = d.st ? '#f2f2ee' : d.c; ctx.fill();
+    if (d.st) {
+        ctx.save(); rr(x, y, w, h, r); ctx.clip(); ctx.fillStyle = d.c; const L = hz ? w : h, n = 6, b = L / n;
+        for (let k = 0; k < n; k += 2) { if (hz) ctx.fillRect(x + k * b + b * .25, y - 1, b, h + 2); else ctx.fillRect(x - 1, y + k * b + b * .25, w + 2, b); } ctx.restore();
+    }
+    rr(x, y, w, h, r); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.stroke();
+}
+
+/* ---------- ikon alat ---------- */
+function icon(id, x, y, s) {
+    s = s || 1; ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    switch (id) {
+        case 'utp':
+            for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(0, 0, 34 - i * 7, 22 - i * 5, 0, 0, 6.3); ctx.lineWidth = 6; ctx.strokeStyle = i % 2 ? '#2563eb' : '#60a5fa'; ctx.stroke(); }
+            ctx.beginPath(); ctx.moveTo(30, 8); ctx.bezierCurveTo(44, 24, 52, 10, 58, 20); ctx.lineWidth = 5; ctx.strokeStyle = '#60a5fa'; ctx.stroke(); break;
+        case 'utp_out':
+            ctx.beginPath(); ctx.ellipse(0, 0, 40, 28, 0, 0, 6.3); ctx.fillStyle = '#0a0a0a'; ctx.fill();
+            ctx.beginPath(); ctx.ellipse(0, 0, 36, 24, 0, 0, 6.3); ctx.lineWidth = 3; ctx.strokeStyle = '#1f2937'; ctx.stroke();
+            for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(-3, 0, 26 - i * 5, 17 - i * 4, 0, 0, 6.3); ctx.lineWidth = 4; ctx.strokeStyle = i % 2 ? '#2563eb' : '#60a5fa'; ctx.stroke(); }
+            ctx.beginPath(); ctx.moveTo(28, 10); ctx.bezierCurveTo(40, 24, 50, 12, 56, 22); ctx.lineWidth = 4; ctx.strokeStyle = '#1f2937'; ctx.stroke();
+            ctx.beginPath(); ctx.arc(30, -22, 8, 0, 6.3); ctx.fillStyle = '#38bdf8'; ctx.fill();
+            ctx.beginPath(); ctx.moveTo(30, -26); ctx.lineTo(30, -20); ctx.lineTo(34, -18); ctx.strokeStyle = '#082f49'; ctx.lineWidth = 2; ctx.stroke(); break;
+        case 'utp_in':
+            for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(-3, 0, 32 - i * 7, 21 - i * 5, 0, 0, 6.3); ctx.lineWidth = 5; ctx.strokeStyle = i % 2 ? '#2563eb' : '#60a5fa'; ctx.stroke(); }
+            ctx.beginPath(); ctx.moveTo(26, 8); ctx.bezierCurveTo(40, 22, 48, 10, 54, 18); ctx.lineWidth = 4; ctx.strokeStyle = '#60a5fa'; ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(24, -26); ctx.lineTo(40, -26); ctx.lineTo(32, -8); ctx.closePath();
+            ctx.fillStyle = '#fbbf24'; ctx.fill(); ctx.strokeStyle = '#92400e'; ctx.lineWidth = 1.5; ctx.stroke();
+            txt('!', 32, -14, { s: 14, a: 'center', c: '#1a1200', w: 800 }); break;
+        case 'rj45':
+            rr(-22, -14, 44, 32, 4); ctx.fillStyle = 'rgba(210,232,245,.92)'; ctx.fill(); ctx.strokeStyle = '#7aa0b8'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = C.gold; for (let k = 0; k < 8; k++)ctx.fillRect(-18 + k * 5, -12, 3, 12);
+            rr(-10, 18, 20, 8, 2); ctx.fillStyle = 'rgba(210,232,245,.92)'; ctx.fill(); break;
+        case 'crimp':
+            ctx.lineWidth = 9; ctx.strokeStyle = '#dc2626'; ctx.beginPath(); ctx.moveTo(-26, 28); ctx.lineTo(-6, -4); ctx.moveTo(26, 28); ctx.lineTo(6, -4); ctx.stroke();
+            rr(-16, -26, 32, 24, 5); ctx.fillStyle = '#9aa8b8'; ctx.fill(); ctx.strokeStyle = '#5b6b7d'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#3b4757'; ctx.fillRect(-9, -20, 18, 8); break;
+        case 'strip':
+            ctx.lineWidth = 8; ctx.strokeStyle = '#eab308'; ctx.beginPath(); ctx.moveTo(-24, 28); ctx.lineTo(-2, -2); ctx.moveTo(24, 28); ctx.lineTo(2, -2); ctx.stroke();
+            ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.moveTo(-10, -2); ctx.lineTo(-3, -28); ctx.lineTo(4, -2); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#94a3b8'; ctx.beginPath(); ctx.moveTo(10, -2); ctx.lineTo(3, -28); ctx.lineTo(-4, -2); ctx.closePath(); ctx.fill(); break;
+        case 'tester':
+            rr(-36, -20, 72, 40, 6); ctx.fillStyle = '#166534'; ctx.fill(); ctx.strokeStyle = '#0b3b1f'; ctx.lineWidth = 2; ctx.stroke();
+            for (let k = 0; k < 8; k++) { ctx.beginPath(); ctx.arc(-28 + k * 8, -8, 3, 0, 6.3); ctx.fillStyle = k % 3 ? '#4ade80' : '#fde047'; ctx.fill(); }
+            ctx.fillStyle = '#0b1220'; ctx.fillRect(-22, 4, 16, 10); ctx.fillRect(6, 4, 16, 10); break;
+        case 'obeng':
+            rr(-38, -8, 30, 16, 6); ctx.fillStyle = '#f97316'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = '#94a3b8'; ctx.beginPath(); ctx.moveTo(-8, 0); ctx.lineTo(38, 0); ctx.stroke(); break;
+        case 'solder':
+            rr(-38, -9, 32, 18, 6); ctx.fillStyle = '#374151'; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = '#94a3b8'; ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(26, 0); ctx.stroke();
+            ctx.strokeStyle = '#f97316'; ctx.beginPath(); ctx.moveTo(26, 0); ctx.lineTo(38, 0); ctx.stroke(); break;
+        case 'palu':
+            ctx.lineWidth = 9; ctx.strokeStyle = '#92602b'; ctx.beginPath(); ctx.moveTo(-6, 30); ctx.lineTo(6, -8); ctx.stroke(); rr(-24, -28, 44, 20, 4); ctx.fillStyle = '#8892a0'; ctx.fill(); break;
+        case 'punch':
+            rr(-9, -30, 18, 40, 7); ctx.fillStyle = '#2563eb'; ctx.fill(); ctx.fillStyle = '#cbd5e1'; ctx.fillRect(-5, 10, 10, 18); ctx.fillStyle = '#64748b'; ctx.fillRect(-5, 24, 10, 4); break;
+        case 'hdmi':
+            ctx.lineWidth = 6; ctx.strokeStyle = '#475569'; ctx.beginPath(); ctx.moveTo(24, 0); ctx.bezierCurveTo(44, 0, 40, 20, 60, 16); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-26, -11); ctx.lineTo(24, -11); ctx.lineTo(24, 11); ctx.lineTo(-20, 11); ctx.lineTo(-26, 4); ctx.closePath(); ctx.fillStyle = '#1e293b'; ctx.fill(); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2; ctx.stroke(); break;
+        case 'bnc':
+            ctx.beginPath(); ctx.arc(0, 0, 22, 0, 6.3); ctx.fillStyle = '#cbd5e1'; ctx.fill(); ctx.strokeStyle = '#64748b'; ctx.lineWidth = 3; ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, 0, 11, 0, 6.3); ctx.fillStyle = '#475569'; ctx.fill(); ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, 6.3); ctx.fillStyle = C.gold; ctx.fill(); break;
+        case 'lakban':
+            ctx.beginPath(); ctx.arc(0, 0, 17, 0, 6.3); ctx.lineWidth = 14; ctx.strokeStyle = '#4b5563'; ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, 0, 24, 0, 6.3); ctx.lineWidth = 1.5; ctx.strokeStyle = '#9ca3af'; ctx.stroke(); break;
+        case 'vga':
+            ctx.beginPath();
+            ctx.moveTo(-42, -18); ctx.lineTo(26, -18); ctx.lineTo(38, -9); ctx.lineTo(38, 9); ctx.lineTo(26, 18); ctx.lineTo(-42, 18);
+            ctx.closePath(); ctx.fillStyle = '#3b82f6'; ctx.fill(); ctx.strokeStyle = '#1e40af'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#dbeafe';
+            for (let r0 = 0; r0 < 3; r0++)for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(-32 + k * 11, -9 + r0 * 9, 2.7, 0, 6.3); ctx.fill(); }
+            break;
+        case 'mouse':
+            ctx.beginPath(); ctx.moveTo(0, -30); ctx.bezierCurveTo(20, -30, 22, -6, 22, 4); ctx.bezierCurveTo(22, 22, 12, 28, 0, 28);
+            ctx.bezierCurveTo(-12, 28, -22, 22, -22, 4); ctx.bezierCurveTo(-22, -6, -20, -30, 0, -30); ctx.closePath();
+            ctx.fillStyle = '#cbd5e1'; ctx.fill(); ctx.strokeStyle = '#64748b'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(0, -4); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2; ctx.stroke();
+            rr(-5, -25, 10, 17, 5); ctx.fillStyle = '#94a3b8'; ctx.fill();
+            ctx.beginPath(); ctx.moveTo(0, -30); ctx.quadraticCurveTo(-6, -44, -26, -46); ctx.strokeStyle = '#64748b'; ctx.lineWidth = 3; ctx.stroke(); break;
+        case 'keyboard':
+            rr(-40, -22, 80, 44, 6); ctx.fillStyle = '#334155'; ctx.fill(); ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#94a3b8';
+            for (let r0 = 0; r0 < 3; r0++)for (let k = 0; k < 8; k++)ctx.fillRect(-33 + k * 8.5, -15 + r0 * 10, 6, 6.5);
+            ctx.fillStyle = '#94a3b8'; ctx.fillRect(-14, 16, 28, 4); break;
+        case 'speaker':
+            rr(-24, -32, 48, 64, 7); ctx.fillStyle = '#3f3f46'; ctx.fill(); ctx.strokeStyle = '#18181b'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, -14, 8, 0, 6.3); ctx.fillStyle = '#18181b'; ctx.fill();
+            ctx.beginPath(); ctx.arc(0, 12, 14, 0, 6.3); ctx.fillStyle = '#18181b'; ctx.fill();
+            ctx.beginPath(); ctx.arc(0, 12, 6.5, 0, 6.3); ctx.fillStyle = '#52525b'; ctx.fill(); break;
+        case 'flashdisk':
+            rr(-11, -28, 22, 20, 3); ctx.fillStyle = '#cbd5e1'; ctx.fill(); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#94a3b8'; ctx.fillRect(-7, -24, 5, 5); ctx.fillRect(1, -24, 5, 5);
+            rr(-19, -10, 38, 36, 7); ctx.fillStyle = '#dc2626'; ctx.fill(); ctx.strokeStyle = '#991b1b'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(-15, -6, 30, 4); break;
+        case 'switch':
+            rr(-44, -16, 88, 32, 4); ctx.fillStyle = '#1e293b'; ctx.fill(); ctx.strokeStyle = '#475569'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#0a1220'; for (let k = 0; k < 6; k++)ctx.fillRect(-34 + k * 12, -8, 9, 16);
+            ctx.beginPath(); ctx.arc(34, -8, 3, 0, 6.3); ctx.fillStyle = '#4ade80'; ctx.fill();
+            ctx.beginPath(); ctx.arc(34, 2, 3, 0, 6.3); ctx.fillStyle = '#fbbf24'; ctx.fill(); break;
+        case 'tang':
+            ctx.lineWidth = 8; ctx.strokeStyle = '#f97316';
+            ctx.beginPath(); ctx.moveTo(-12, 34); ctx.lineTo(-10, 4); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(12, 34); ctx.lineTo(10, 4); ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, 0, 5, 0, 6.3); ctx.fillStyle = '#4b5563'; ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-11, -2); ctx.lineTo(-5, -28); ctx.lineTo(5, -28); ctx.lineTo(11, -2); ctx.closePath();
+            ctx.fillStyle = '#9ca3af'; ctx.fill(); ctx.strokeStyle = '#4b5563'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, -28); ctx.lineTo(0, -14); ctx.strokeStyle = '#4b5563'; ctx.lineWidth = 1.5; ctx.stroke(); break;
+        case 'sarung_tangan': {
+            ctx.beginPath();
+            rr(-26, -6, 44, 36, 8);
+            const gloveGrad = ctx.createLinearGradient(0, -6, 0, 30);
+            gloveGrad.addColorStop(0, '#f87171'); gloveGrad.addColorStop(1, '#b91c1c');
+            ctx.fillStyle = gloveGrad; ctx.fill(); ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 2; ctx.stroke();
+            const fingers = [{ x: -24, w: 12, h: 26 }, { x: -10, w: 12, h: 32 }, { x: 4, w: 12, h: 30 }, { x: 18, w: 12, h: 24 }];
+            fingers.forEach(f => { ctx.beginPath(); rr(f.x, -6 - f.h, f.w, f.h + 8, 6); ctx.fillStyle = gloveGrad; ctx.fill(); ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 2; ctx.stroke(); });
+            ctx.beginPath(); rr(-38, -2, 14, 22, 6); ctx.fillStyle = gloveGrad; ctx.fill(); ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+            ctx.beginPath(); ctx.moveTo(-26, 8); ctx.lineTo(18, 8); ctx.stroke(); ctx.setLineDash([]);
+            break;
+        }
+        case 'gunting':
+            ctx.lineWidth = 5; ctx.strokeStyle = '#cbd5e1';
+            ctx.beginPath(); ctx.moveTo(-22, -26); ctx.lineTo(12, 8); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(22, -26); ctx.lineTo(-12, 8); ctx.stroke();
+            ctx.beginPath(); ctx.arc(-20, 20, 9, 0, 6.3); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 6; ctx.stroke();
+            ctx.beginPath(); ctx.arc(20, 20, 9, 0, 6.3); ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, 0, 3, 0, 6.3); ctx.fillStyle = '#475569'; ctx.fill(); break;
+        case 'isolasi':
+            ctx.beginPath(); ctx.arc(0, 0, 18, 0, 6.3); ctx.lineWidth = 16; ctx.strokeStyle = '#1f2937'; ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, 0, 26, 0, 6.3); ctx.lineWidth = 2; ctx.strokeStyle = '#374151'; ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(20, -10); ctx.lineTo(40, -18); ctx.lineTo(40, 10); ctx.lineTo(20, 16); ctx.closePath();
+            ctx.fillStyle = '#1f2937'; ctx.fill();
+            ctx.beginPath(); ctx.moveTo(24, -8); ctx.lineTo(38, -14); ctx.strokeStyle = '#6b7280'; ctx.lineWidth = 1; ctx.stroke(); break;
+        case 'multimeter':
+            rr(-24, -32, 48, 62, 6); ctx.fillStyle = '#fbbf24'; ctx.fill(); ctx.strokeStyle = '#92400e'; ctx.lineWidth = 2; ctx.stroke();
+            rr(-18, -26, 36, 20, 3); ctx.fillStyle = '#0a1220'; ctx.fill();
+            txt('12.5', 0, -11, { s: 12, a: 'center', c: '#4ade80', f: FONT_H });
+            ctx.beginPath(); ctx.arc(0, 10, 12, 0, 6.3); ctx.fillStyle = '#475569'; ctx.fill();
+            ctx.beginPath(); ctx.arc(0, 10, 3.5, 0, 6.3); ctx.fillStyle = '#1e293b'; ctx.fill();
+            ctx.beginPath(); ctx.moveTo(0, 10); ctx.lineTo(0, 2); ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.stroke(); break;
+        case 'coaxial':
+            ctx.lineWidth = 10; ctx.strokeStyle = '#0f172a';
+            ctx.beginPath(); ctx.moveTo(-40, 0); ctx.lineTo(16, 0); ctx.stroke();
+            ctx.lineWidth = 6; ctx.strokeStyle = '#1e293b';
+            ctx.beginPath(); ctx.moveTo(-40, 0); ctx.lineTo(14, 0); ctx.stroke();
+            ctx.beginPath(); ctx.arc(28, 0, 11, 0, 6.3); ctx.fillStyle = '#cbd5e1'; ctx.fill(); ctx.strokeStyle = '#64748b'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.beginPath(); ctx.arc(28, 0, 5, 0, 6.3); ctx.fillStyle = '#475569'; ctx.fill();
+            ctx.beginPath(); ctx.arc(28, 0, 2, 0, 6.3); ctx.fillStyle = C.gold; ctx.fill(); break;
+        case 'loc_lab':
+            rr(-16, -13, 32, 22, 2); ctx.fillStyle = '#0f172a'; ctx.fill(); ctx.strokeStyle = '#475569'; ctx.lineWidth = 2; ctx.stroke();
+            rr(-13, -10, 26, 16, 1); ctx.fillStyle = '#38bdf8'; ctx.fill();
+            ctx.fillStyle = '#475569'; ctx.fillRect(-3, 9, 6, 3); ctx.fillRect(-8, 12, 16, 3); break;
+        case 'loc_repair':
+            ctx.save(); ctx.rotate(-0.5);
+            ctx.beginPath(); ctx.arc(-9, -10, 7, 0, 6.3); ctx.fillStyle = '#cbd5e1'; ctx.fill();
+            ctx.beginPath(); ctx.arc(-9, -10, 3, 0, 6.3); ctx.fillStyle = '#0f172a'; ctx.fill();
+            ctx.fillStyle = '#cbd5e1'; ctx.fillRect(-11, -5, 4, 20);
+            ctx.restore();
+            ctx.beginPath(); ctx.arc(12, -2, 4, 0, 6.3); ctx.fillStyle = '#fbbf24'; ctx.fill();
+            ctx.beginPath(); ctx.moveTo(12, -8); ctx.lineTo(15, -2); ctx.lineTo(9, -2); ctx.closePath(); ctx.fillStyle = '#fbbf24'; ctx.fill(); break;
+        case 'loc_outdoor':
+            rr(-18, 2, 12, 14, 1); ctx.fillStyle = '#475569'; ctx.fill();
+            rr(-4, -6, 14, 22, 1); ctx.fillStyle = '#334155'; ctx.fill();
+            ctx.fillStyle = '#fbbf24';
+            for (let r0 = 0; r0 < 3; r0++)for (let c0 = 0; c0 < 2; c0++)ctx.fillRect(-2 + c0 * 5, -3 + r0 * 5, 3, 3);
+            ctx.beginPath(); ctx.arc(-12, 7, 2.2, 0, 6.3); ctx.fillStyle = '#0ea5e9'; ctx.fill();
+            ctx.beginPath(); ctx.arc(-8, 7, 2.2, 0, 6.3); ctx.fillStyle = '#0ea5e9'; ctx.fill();
+            ctx.beginPath(); ctx.arc(-10, 9, 2.8, 0, 6.3); ctx.fillStyle = '#0ea5e9'; ctx.fill(); break;
+    }
+    ctx.restore();
+}
+
+/* ---------- sprite cache ---------- */
+const _sprCache = new Map();
+function toolSprite(id) {
+    if (_sprCache.has(id)) return _sprCache.get(id);
+    const half = 74, SS = 2;
+    const cn = document.createElement('canvas'); cn.width = cn.height = half * 2 * SS;
+    const g = cn.getContext('2d'); const prev = ctx; ctx = g;
+    ctx.setTransform(SS, 0, 0, SS, half * SS, half * SS);
+    icon(id, 0, 0, 1);
+    ctx.globalCompositeOperation = 'source-atop';
+    const lg = ctx.createLinearGradient(0, -half, 0, half);
+    lg.addColorStop(0, 'rgba(255,255,255,.30)'); lg.addColorStop(.40, 'rgba(255,255,255,.05)');
+    lg.addColorStop(.72, 'rgba(0,0,0,.12)'); lg.addColorStop(1, 'rgba(0,0,0,.38)');
+    ctx.fillStyle = lg; ctx.fillRect(-half, -half, half * 2, half * 2);
+    ctx.globalCompositeOperation = 'source-over'; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx = prev;
+    _sprCache.set(id, cn); return cn;
+}
+function drawSprite(id, x, y, size, rot, alpha) {
+    const sp = toolSprite(id);
+    ctx.save(); if (alpha != null) ctx.globalAlpha = alpha;
+    ctx.translate(x, y); if (rot) ctx.rotate(rot);
+    ctx.drawImage(sp, -size / 2, -size / 2, size, size); ctx.restore();
+}
+
+/* ---------- ruangan + lemari (Level 1) ---------- */
+const ROOM = {
+    A: { w1: '#16283f', w2: '#0b1523', f1: '#0a1421', f2: '#050a12', lamp: '#7cc4ff', glow: '124,196,255' },
+    C: { w1: '#2a2136', w2: '#150f1f', f1: '#0e0a16', f2: '#06040a', lamp: '#ffb066', glow: '255,176,102' },
+    H: { w1: '#13241f', w2: '#0a1512', f1: '#08120f', f2: '#030806', lamp: '#8ef0bb', glow: '142,240,187' }
+};
+function buildRoom(K) {
+    const cn = document.createElement('canvas'); cn.width = W; cn.height = H;
+    const g = cn.getContext('2d'); const prev = ctx; ctx = g;
+    const P = ROOM[K.kode] || ROOM.A; const hz = 470;
+    let grd = ctx.createLinearGradient(0, 54, 0, hz);
+    grd.addColorStop(0, P.w1); grd.addColorStop(1, P.w2);
+    ctx.fillStyle = grd; ctx.fillRect(0, 0, W, hz);
+    grd = ctx.createLinearGradient(0, hz, 0, H);
+    grd.addColorStop(0, P.f1); grd.addColorStop(1, P.f2);
+    ctx.fillStyle = grd; ctx.fillRect(0, hz, W, H - hz);
+    ctx.strokeStyle = 'rgba(255,255,255,.045)'; ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x += 80) { ctx.beginPath(); ctx.moveTo(x, 54); ctx.lineTo(x, hz); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.fillRect(0, hz, W, 2);
+    ctx.fillStyle = 'rgba(255,255,255,.10)';
+    ctx.beginPath(); ctx.ellipse(W / 2, 70, 220, 26, 0, 0, 6.3); ctx.fill();
+    const rg = ctx.createRadialGradient(W / 2, 78, 6, W / 2, 300, 460);
+    rg.addColorStop(0, 'rgba(' + P.glow + ',.14)'); rg.addColorStop(1, 'rgba(' + P.glow + ',0)');
+    ctx.fillStyle = rg; ctx.fillRect(0, 54, W, 520);
+    if (K.kode === 'A') {
+        for (let i = 0; i < 2; i++) { const x = 4 + i * 40, y = hz - 58; ctx.fillStyle = '#0c1624'; ctx.fillRect(x, y, 34, 58); ctx.fillStyle = 'rgba(56,189,248,.22)'; ctx.fillRect(x + 4, y + 6, 26, 18); }
+        ctx.fillStyle = 'rgba(56,189,248,.10)'; ctx.fillRect(700, hz - 130, 96, 46);
+        ctx.strokeStyle = 'rgba(56,189,248,.30)'; ctx.lineWidth = 2; ctx.strokeRect(700, hz - 130, 96, 46);
+    } else if (K.kode === 'C') {
+        for (let i = 0; i < 3; i++) { ctx.fillStyle = i % 2 ? '#241a2e' : '#1a1322'; ctx.fillRect(2 + i * 30, hz - 40 - i * 22, 28, 40 + i * 22); }
+        ctx.fillStyle = 'rgba(255,176,102,.10)'; ctx.fillRect(720, hz - 120, 110, 40);
+    } else {
+        ctx.strokeStyle = 'rgba(142,240,187,.16)'; ctx.lineWidth = 2;
+        for (let i = 0; i < 26; i++) { const x = (i * 137) % W; ctx.beginPath(); ctx.moveTo(x, 54); ctx.lineTo(x - 18, 300); ctx.stroke(); }
+        ctx.fillStyle = '#0b1a16'; ctx.fillRect(0, hz - 84, 60, 84);
+        ctx.fillStyle = 'rgba(142,240,187,.14)'; ctx.fillRect(6, hz - 76, 48, 30);
+    }
+    ctx = prev; return cn;
+}
+const CABG = { FX: 36, FY: 156, FW: 560, FH: 380, T: 18, DX: 30, DY: -26 };
+CABG.IX = CABG.FX + CABG.T; CABG.IY = CABG.FY + CABG.T;
+CABG.IW = CABG.FW - 2 * CABG.T; CABG.IH = CABG.FH - 2 * CABG.T;
+let _cabSpr = null;
+function cabinetSprite() {
+    if (_cabSpr) return _cabSpr;
+    const G = CABG; const CX0 = 0, CY0 = 108, SPW = 680, SPH = 474;
+    const cn = document.createElement('canvas'); cn.width = SPW; cn.height = SPH;
+    const g = cn.getContext('2d'); const prev = ctx; ctx = g;
+    ctx.setTransform(1, 0, 0, 1, -CX0, -CY0); ctx.lineJoin = 'round';
+    let sh = ctx.createRadialGradient(G.FX + G.FW / 2 + 18, G.FY + G.FH + 10, 6, G.FX + G.FW / 2 + 18, G.FY + G.FH + 10, 320);
+    sh.addColorStop(0, 'rgba(0,0,0,.62)'); sh.addColorStop(.5, 'rgba(0,0,0,.28)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sh; ctx.beginPath(); ctx.ellipse(G.FX + G.FW / 2 + 18, G.FY + G.FH + 10, 320, 32, 0, 0, 6.3); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(G.FX, G.FY); ctx.lineTo(G.FX + G.DX, G.FY + G.DY);
+    ctx.lineTo(G.FX + G.FW + G.DX, G.FY + G.DY); ctx.lineTo(G.FX + G.FW, G.FY); ctx.closePath();
+    let gp = ctx.createLinearGradient(0, G.FY + G.DY, 0, G.FY);
+    gp.addColorStop(0, '#547a9e'); gp.addColorStop(1, '#31496a');
+    ctx.fillStyle = gp; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(G.FX + G.FW, G.FY); ctx.lineTo(G.FX + G.FW + G.DX, G.FY + G.DY);
+    ctx.lineTo(G.FX + G.FW + G.DX, G.FY + G.FH + G.DY); ctx.lineTo(G.FX + G.FW, G.FY + G.FH); ctx.closePath();
+    let gs = ctx.createLinearGradient(G.FX + G.FW, 0, G.FX + G.FW + G.DX, 0);
+    gs.addColorStop(0, '#2b4058'); gs.addColorStop(1, '#141f2c');
+    ctx.fillStyle = gs; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(G.FX, G.FY + G.FH); ctx.lineTo(G.FX + G.DX, G.FY + G.FH + G.DY);
+    ctx.lineTo(G.FX + G.FW + G.DX, G.FY + G.FH + G.DY); ctx.lineTo(G.FX + G.FW, G.FY + G.FH); ctx.closePath();
+    ctx.fillStyle = '#0d1724'; ctx.fill();
+    ctx.save();
+    rr(G.IX - 6, G.IY - 6, G.IW + 12, G.IH + 12, 8); ctx.clip();
+    const bg2 = ctx.createLinearGradient(G.IX, G.IY, G.IX + G.IW, G.IY + G.IH);
+    bg2.addColorStop(0, '#0a1220'); bg2.addColorStop(1, '#132234');
+    ctx.fillStyle = bg2; ctx.fillRect(G.IX - 8, G.IY - 8, G.IW + 16, G.IH + 16);
+    ctx.fillStyle = '#0c1826'; ctx.fillRect(G.IX + 21, G.IY - 18, G.IW, G.IH);
+    ctx.beginPath();
+    ctx.moveTo(G.IX, G.IY); ctx.lineTo(G.IX + 21, G.IY - 18);
+    ctx.lineTo(G.IX + 21, G.IY + G.IH - 18); ctx.lineTo(G.IX, G.IY + G.IH); ctx.closePath();
+    ctx.fillStyle = '#18283c'; ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(G.IX, G.IY + G.IH); ctx.lineTo(G.IX + 21, G.IY + G.IH - 18);
+    ctx.lineTo(G.IX + G.IW + 21, G.IY + G.IH - 18); ctx.lineTo(G.IX + G.IW, G.IY + G.IH); ctx.closePath();
+    ctx.fillStyle = '#101d2c'; ctx.fill();
+    ctx.restore();
+    const pgX = G.IX + 6, pgY = G.IY + 4, pgW = G.IW - 12, pgH = 96;
+    rr(pgX, pgY, pgW, pgH, 6);
+    let gg = ctx.createLinearGradient(0, pgY, 0, pgY + pgH);
+    gg.addColorStop(0, '#1c2f45'); gg.addColorStop(1, '#132234');
+    ctx.fillStyle = gg; ctx.fill(); ctx.strokeStyle = '#2b4763'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = 'rgba(120,170,220,.16)';
+    for (let y = pgY + 10; y < pgY + pgH - 6; y += 14)
+        for (let x = pgX + 12; x < pgX + pgW - 6; x += 16) { ctx.beginPath(); ctx.arc(x, y, 1.6, 0, 6.3); ctx.fill(); }
+    ctx.fillStyle = '#2a4258'; ctx.fillRect(pgX, pgY + pgH - 8, pgW, 8);
+    ctx.fillStyle = 'rgba(255,255,255,.10)'; ctx.fillRect(pgX, pgY + pgH - 8, pgW, 2);
+    function shelf(y) {
+        const x0 = G.IX + 6, x1 = G.IX + G.IW - 6;
+        ctx.beginPath();
+        ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.lineTo(x1 + 16, y - 13); ctx.lineTo(x0 + 16, y - 13); ctx.closePath();
+        let sg = ctx.createLinearGradient(0, y - 13, 0, y);
+        sg.addColorStop(0, '#3d5a78'); sg.addColorStop(1, '#2a415a');
+        ctx.fillStyle = sg; ctx.fill();
+        rr(x0, y, x1 - x0, 10, 3);
+        let fg = ctx.createLinearGradient(0, y, 0, y + 10);
+        fg.addColorStop(0, '#4a6c8e'); fg.addColorStop(1, '#22374d');
+        ctx.fillStyle = fg; ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(x0 + 2, y + 1, x1 - x0 - 4, 1.6);
+        ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(x0, y + 10, x1 - x0, 5);
+    }
+    shelf(276); shelf(390); shelf(500);
+    const F = G;
+    ctx.fillStyle = '#33506f';
+    ctx.fillRect(F.FX, F.FY, F.FW, F.T);
+    ctx.fillRect(F.FX, F.FY + F.FH - F.T, F.FW, F.T);
+    ctx.fillRect(F.FX, F.FY, F.T, F.FH);
+    ctx.fillRect(F.FX + F.FW - F.T, F.FY, F.T, F.FH);
+    let mg = ctx.createLinearGradient(0, F.FY, 0, F.FY + F.FH);
+    mg.addColorStop(0, 'rgba(255,255,255,.22)'); mg.addColorStop(.5, 'rgba(255,255,255,.02)'); mg.addColorStop(1, 'rgba(0,0,0,.30)');
+    ctx.fillStyle = mg;
+    ctx.fillRect(F.FX, F.FY, F.FW, F.T);
+    ctx.fillRect(F.FX, F.FY, F.T, F.FH);
+    ctx.fillRect(F.FX + F.FW - F.T, F.FY, F.T, F.FH);
+    ctx.fillRect(F.FX, F.FY + F.FH - F.T, F.FW, F.T);
+    ctx.fillStyle = '#8fa9c4';
+    [[F.FX + 9, F.FY + 9], [F.FX + F.FW - 9, F.FY + 9], [F.FX + 9, F.FY + F.FH - 9], [F.FX + F.FW - 9, F.FY + F.FH - 9]].forEach(p => {
+        ctx.beginPath(); ctx.arc(p[0], p[1], 3, 0, 6.3); ctx.fill();
+        ctx.fillStyle = '#40597a'; ctx.beginPath(); ctx.arc(p[0] - .7, p[1] - .7, 1.4, 0, 6.3); ctx.fill();
+        ctx.fillStyle = '#8fa9c4';
+    });
+    ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = 2; ctx.strokeRect(F.FX, F.FY, F.FW, F.FH);
+    const lx = F.FX + F.FW / 2;
+    ctx.fillStyle = '#1b2a3d';
+    rr(lx - 96, F.FY + F.DY - 26, 192, 16, 6); ctx.fill();
+    ctx.strokeStyle = '#4d6c8d'; ctx.lineWidth = 1.5; ctx.stroke();
+    let lg2 = ctx.createLinearGradient(0, F.FY + F.DY - 12, 0, F.FY + F.DY - 6);
+    lg2.addColorStop(0, 'rgba(255,255,255,.15)'); lg2.addColorStop(1, '#bfe6ff');
+    ctx.fillStyle = lg2;
+    rr(lx - 88, F.FY + F.DY - 12, 176, 6, 3); ctx.fill();
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const cg = ctx.createLinearGradient(0, F.FY + F.DY - 6, 0, F.FY + F.FH * .8);
+    cg.addColorStop(0, 'rgba(190,230,255,.16)'); cg.addColorStop(1, 'rgba(190,230,255,0)');
+    ctx.fillStyle = cg;
+    ctx.beginPath(); ctx.moveTo(lx - 88, F.FY + F.DY - 6); ctx.lineTo(lx + 88, F.FY + F.DY - 6);
+    ctx.lineTo(lx + 300, F.FY + F.FH * .85); ctx.lineTo(lx - 300, F.FY + F.FH * .85); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx = prev;
+    _cabSpr = { cn, x: CX0, y: CY0, w: SPW, h: SPH };
+    return _cabSpr;
+}
+
+/* ---------- karakter Andi ---------- */
+function drawAndi(cx, cy, s, mood, t) {
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.ellipse(0, 150, 86, 14, 0, 0, 6.3); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fill();
+    const g = ctx.createLinearGradient(0, 20, 0, 150);
+    g.addColorStop(0, '#3b82f6'); g.addColorStop(1, '#1d4ed8');
+    ctx.beginPath();
+    ctx.moveTo(-76, 150); ctx.lineTo(-76, 76);
+    ctx.quadraticCurveTo(-76, 34, -32, 26);
+    ctx.lineTo(32, 26);
+    ctx.quadraticCurveTo(76, 34, 76, 76);
+    ctx.lineTo(76, 150); ctx.closePath();
+    ctx.fillStyle = g; ctx.fill();
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath(); ctx.moveTo(-70, 86); ctx.lineTo(-38, 36); ctx.lineTo(-38, 150); ctx.lineTo(-70, 150); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(70, 86); ctx.lineTo(38, 36); ctx.lineTo(38, 150); ctx.lineTo(70, 150); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.6)';
+    ctx.fillRect(-70, 98, 32, 7); ctx.fillRect(38, 98, 32, 7);
+    ctx.beginPath(); ctx.moveTo(-30, 26); ctx.lineTo(0, 62); ctx.lineTo(30, 26); ctx.lineTo(16, 26); ctx.lineTo(0, 46); ctx.lineTo(-16, 26); ctx.closePath();
+    ctx.fillStyle = '#0f2b52'; ctx.fill();
+    ctx.fillStyle = '#e8b48a'; ctx.fillRect(-15, 4, 30, 32);
+    ctx.beginPath(); ctx.ellipse(0, -26, 49, 53, 0, 0, 6.3); ctx.fillStyle = '#f3c39a'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-49, -22, 9, 12, 0, 0, 6.3); ctx.fillStyle = '#eeb98f'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(49, -22, 9, 12, 0, 0, 6.3); ctx.fillStyle = '#eeb98f'; ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-49, -30); ctx.quadraticCurveTo(-56, -72, -24, -78);
+    ctx.lineTo(24, -78); ctx.quadraticCurveTo(56, -72, 49, -30);
+    ctx.quadraticCurveTo(44, -56, 0, -56); ctx.quadraticCurveTo(-44, -56, -49, -30); ctx.closePath();
+    ctx.fillStyle = '#241a14'; ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(0, -58, 50, 44, 0, Math.PI, 2 * Math.PI);
+    ctx.lineTo(50, -58); ctx.lineTo(-50, -58); ctx.closePath();
+    ctx.fillStyle = '#1d4ed8'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, -58, 60, 11, 0, 0, Math.PI); ctx.closePath();
+    ctx.fillStyle = '#1e40af'; ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -72, 10, 0, 6.3); ctx.fillStyle = '#fbbf24'; ctx.fill();
+    ctx.fillStyle = '#1e3a8a'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('N', 0, -71);
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(-52, -10); ctx.quadraticCurveTo(-72, 4, -40, 13); ctx.stroke();
+    ctx.beginPath(); ctx.arc(-38, 14, 7, 0, 6.3); ctx.fillStyle = '#334155'; ctx.fill();
+    const blink = (Math.sin(t * 1.9) > 0.985) ? 0.12 : 1;
+    if (mood === 'happy') {
+        ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(-18, -28, 9, Math.PI * 1.12, Math.PI * 1.88); ctx.stroke();
+        ctx.beginPath(); ctx.arc(18, -28, 9, Math.PI * 1.12, Math.PI * 1.88); ctx.stroke();
+    } else {
+        ctx.beginPath(); ctx.ellipse(-18, -28, 7, 9 * blink, 0, 0, 6.3); ctx.fillStyle = '#1e293b'; ctx.fill();
+        ctx.beginPath(); ctx.ellipse(18, -28, 7, 9 * blink, 0, 0, 6.3); ctx.fillStyle = '#1e293b'; ctx.fill();
+        if (blink > 0.5) {
+            ctx.beginPath(); ctx.arc(-15.5, -31.5, 2.2, 0, 6.3); ctx.fillStyle = '#fff'; ctx.fill();
+            ctx.beginPath(); ctx.arc(20.5, -31.5, 2.2, 0, 6.3); ctx.fillStyle = '#fff'; ctx.fill();
+        }
+    }
+    ctx.strokeStyle = '#241a14'; ctx.lineWidth = 3.4;
+    if (mood === 'sad') {
+        ctx.beginPath(); ctx.moveTo(-28, -45); ctx.lineTo(-10, -39); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(28, -45); ctx.lineTo(10, -39); ctx.stroke();
+    } else {
+        ctx.beginPath(); ctx.moveTo(-28, -42); ctx.lineTo(-10, -46); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(28, -42); ctx.lineTo(10, -46); ctx.stroke();
+    }
+    ctx.strokeStyle = '#8b4a3a'; ctx.lineWidth = 3.4;
+    if (mood === 'talk') { const o = 4 + 4 * Math.abs(Math.sin(t * 9)); ctx.beginPath(); ctx.ellipse(0, 4, 9, o, 0, 0, 6.3); ctx.fillStyle = '#8b4a3a'; ctx.fill(); }
+    else if (mood === 'happy') { ctx.beginPath(); ctx.arc(0, -2, 16, 0.12 * Math.PI, 0.88 * Math.PI); ctx.stroke(); }
+    else if (mood === 'sad') { ctx.beginPath(); ctx.arc(0, 18, 14, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.arc(0, -2, 13, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke(); }
+    ctx.restore();
+}
+function drawAndiFace(cx, cy, r, mood, t) {
+    ctx.save(); ctx.translate(cx, cy);
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.3); ctx.fillStyle = '#f3c39a'; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = '#c99a76'; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, -r * 0.42, r * 0.95, r * 0.6, 0, Math.PI, 2 * Math.PI); ctx.closePath();
+    ctx.fillStyle = '#1d4ed8'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, -r * 0.42, r * 1.15, r * 0.22, 0, 0, Math.PI); ctx.closePath();
+    ctx.fillStyle = '#1e40af'; ctx.fill();
+    const blink = (Math.sin(t * 2.1) > 0.985) ? 0.15 : 1;
+    ctx.beginPath(); ctx.ellipse(-r * 0.35, -r * 0.05, r * 0.15, r * 0.2 * blink, 0, 0, 6.3); ctx.fillStyle = '#1e293b'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r * 0.35, -r * 0.05, r * 0.15, r * 0.2 * blink, 0, 0, 6.3); ctx.fillStyle = '#1e293b'; ctx.fill();
+    ctx.strokeStyle = '#8b4a3a'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+    if (mood === 'happy') { ctx.beginPath(); ctx.arc(0, r * 0.18, r * 0.35, 0.12 * Math.PI, 0.88 * Math.PI); ctx.stroke(); }
+    else if (mood === 'sad') { ctx.beginPath(); ctx.arc(0, r * 0.55, r * 0.3, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.arc(0, r * 0.18, r * 0.3, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke(); }
+    ctx.restore();
+}
+
+/* ---------- level dasar, HUD, kuis ---------- */
+function baseLevel(n, title) {
+    const lv = { n, title, score: 100, mistakes: [], t0: performance.now(), phase: 'play', finished: false, delay: 1300, dur: 0, finAt: 0, idx: n - 1 };
+    lv.elapsed = () => (performance.now() - lv.t0) / 1000;
+    lv.penalize = (p, msg) => { lv.score = Math.max(0, lv.score - p); lv.mistakes.push(msg); say(msg + ' (−' + p + ')', 'bad'); shake = 10; };
+    lv.win = d => { if (lv.phase === 'fin') return; lv.phase = 'fin'; lv.finAt = performance.now(); lv.delay = d || 1300; lv.dur = Math.round(lv.elapsed()); };
+    lv.tick = () => { if (lv.phase === 'fin' && !lv.finished && performance.now() - lv.finAt > lv.delay) { lv.finished = true; endLevel(lv, true); } };
+    return lv;
+}
+function hud(lv) {
+    ctx.fillStyle = '#08111e'; ctx.fillRect(0, 0, W, 54); ctx.fillStyle = C.line; ctx.fillRect(0, 53, W, 1);
+    txt('Level ' + lv.n, 18, 35, { s: 22, f: FONT_H, c: C.acc, w: 600 });
+    txt(lv.title, 112, 34, { s: 15, c: C.text });
+    btn(W - 92, 10, 78, 34, 'Menu', () => go(levelsScene), { color: '#334155', tc: C.text, s: 14 });
+    txt('Skor', W - 112, 22, { s: 11, c: C.mute, a: 'right' });
+    txt(lv.score, W - 112, 46, { s: 22, f: FONT_H, c: C.warn, a: 'right', w: 600 });
+    const t = lv.phase === 'fin' ? lv.dur : lv.elapsed();
+    let lab, col = C.text;
+    if (lv.limit) { const left = Math.max(0, lv.limit - t); lab = fmt(left); if (left < 30) col = C.bad; } else lab = fmt(t);
+    txt(lv.limit ? 'Sisa waktu' : 'Waktu', W - 192, 22, { s: 11, c: C.mute, a: 'right' });
+    txt(lab, W - 192, 46, { s: 22, f: FONT_H, c: col, a: 'right', w: 600 });
+}
+function drawQuiz(lv) {
+    btns.length = 0;
+    ctx.fillStyle = 'rgba(4,10,20,.8)'; ctx.fillRect(0, 54, W, H - 54);
+    const x = 170, y = 130, w = 620, h = 350;
+    rr(x, y, w, h, 18); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.acc; ctx.lineWidth = 2; ctx.stroke();
+    const quizzes = lv.quizzes || (lv.quiz ? [lv.quiz] : []);
+    const q = quizzes[lv.quizIdx || 0];
+    if (!q) return;
+    txt('Pertanyaan ' + ((lv.quizIdx || 0) + 1) + ' dari ' + quizzes.length, x + w / 2, y + 40, { s: 24, f: FONT_H, c: C.acc, a: 'center', w: 600 });
+    para(q.q, x + w / 2, y + 80, w - 70, 24, { s: 17, a: 'center', c: C.text, w: 700 });
+    const fin = lv.phase === 'fin';
+    q.opts.forEach((o, i) => {
+        const by = y + 150 + i * 58; const right = i === q.ans;
+        let color = '#2b4360', tc = C.text, dis = fin;
+        if (lv.wrongPicks.includes(i)) { color = '#5b2530'; tc = '#f5b5bd'; dis = true; }
+        if (fin && right) { color = C.ok; tc = '#04160f'; }
+        btn(x + 30, by, w - 60, 46, o, () => quizPick(lv, i), { color, tc, disabled: false, s: 15 });
+        if (dis) { btns.pop(); }
+    });
+}
+function quizPick(lv, i) {
+    if (lv.phase !== 'quiz' && lv.phase !== 'fin') return;
+    const quizzes = lv.quizzes || (lv.quiz ? [lv.quiz] : []);
+    const q = quizzes[lv.quizIdx || 0];
+    if (!q) return;
+    if (i === q.ans) {
+        say('Benar. ' + q.why, 'ok');
+        lv.quizIdx = (lv.quizIdx || 0) + 1;
+        lv.wrongPicks = [];
+        if (lv.quizIdx >= quizzes.length) lv.win(2400);
+    } else { lv.wrongPicks.push(i); lv.penalize(10, 'Jawaban kuis kurang tepat'); }
+}
+
+/* ---------- akhir level, hasil, log ---------- */
+function endLevel(lv, ok) {
+    if (!lv.dur) lv.dur = Math.round(lv.elapsed());
+    const stars = ok ? (lv.score >= 85 ? 3 : lv.score >= 60 ? 2 : 1) : 0;
+    const i = lv.n - 1;
+    const isNewBest = ok && lv.score > (save.best[i] || 0);
+    if (ok) {
+        save.stars[i] = Math.max(save.stars[i] || 0, stars);
+        save.best[i] = Math.max(save.best[i] || 0, lv.score);
+        save.unlocked = Math.max(save.unlocked, Math.min(5, lv.n + 1));
+        const nm = (nameEl.value || '(tanpa nama)').trim() || '(tanpa nama)';
+        const bk = lv.boardKey || 'board';
+        if (!Array.isArray(save[bk])) save[bk] = [];
+        save[bk].push({ nama: nm, skor: lv.score, waktu: lv.dur, ts: Date.now() });
+        save[bk].sort((a, b) => b.skor - a.skor || a.waktu - b.waktu);
+        save[bk] = save[bk].slice(0, 10);
+    }
+    const extra = lv.logExtra || {};
+    save.log.push(Object.assign({
+        ts: Date.now(), nama: (nameEl.value || '(tanpa nama)').trim() || '(tanpa nama)', level: lv.n, skor: lv.score,
+        bintang: stars, durasi: lv.dur, salah: lv.mistakes.length, hasil: ok ? 'Lulus' : 'Gagal'
+    }, { kabel_cm: 0, rj45: 0, bantuan: 0, lencana: '' }, extra));
+    if (save.log.length > 300) save.log.shift();
+    persist();
+    go((lv.makeResult || resultScene)(lv, ok, stars, isNewBest));
+}
+function resultScene(lv, ok, stars, isNewBest) {
+    return {
+        draw() {
+            bg(false);
+            const x = 250, y = 70, w = 460, h = 460;
+            rr(x, y, w, h, 20); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = ok ? C.ok : C.bad; ctx.lineWidth = 2; ctx.stroke();
+            txt(ok ? 'Level selesai' : 'Waktu habis', W / 2, y + 54, { s: 34, f: FONT_H, a: 'center', c: ok ? C.ok : C.bad, w: 600 });
+            txt('Level ' + lv.n + ' · ' + lv.title, W / 2, y + 82, { s: 14, a: 'center', c: C.mute });
+            if (isNewBest) txt('REKOR BARU!', W / 2, y + 108, { s: 18, f: FONT_H, a: 'center', c: C.warn, w: 600 });
+            for (let i = 0; i < 3; i++)star(W / 2 - 56 + i * 56, y + 132, 22, i < stars);
+            txt(lv.score, W / 2, y + 210, { s: 60, f: FONT_H, a: 'center', c: C.warn, w: 600 });
+            txt('skor akhir', W / 2, y + 232, { s: 13, a: 'center', c: C.mute });
+            txt('Waktu ' + fmt(lv.dur) + '   ·   Kesalahan ' + lv.mistakes.length, W / 2, y + 262, { s: 15, a: 'center' });
+            if (ok && lv.n === 1) {
+                const pos = save.board.findIndex(e => e.skor === lv.score && e.waktu === lv.dur);
+                if (pos >= 0 && pos < 10) txt('Peringkat #' + (pos + 1) + ' di papan skor Level 1', W / 2, y + 286, { s: 14, a: 'center', c: C.acc, w: 700 });
+            }
+            if (lv.mistakes.length) {
+                txt('Catatan kesalahan:', x + 30, y + 300, { s: 13, c: C.mute });
+                lv.mistakes.slice(0, 3).forEach((m, i) => { const l = wrapLines(m, w - 60, 12, 600)[0]; txt('• ' + (l.length < m.length && wrapLines(m, w - 60, 12, 600).length > 1 ? l + ' …' : l), x + 30, y + 320 + i * 18, { s: 12, w: 600, c: C.text }); });
+            } else txt(ok ? 'Tanpa kesalahan. Kerja bagus!' : 'Coba lagi, kamu pasti bisa.', x + 30, y + 308, { s: 14, c: C.ok });
+            const by = y + 380;
+            btn(x + 30, by, 130, 46, 'Ulangi', () => startLevel(lv.idx), { color: '#334155', tc: C.text });
+            if (ok && lv.n < 5) btn(x + 175, by, 255, 46, 'Lanjut ke level ' + (lv.n + 1), () => startLevel(lv.n), { color: C.ok });
+            else btn(x + 175, by, 255, 46, 'Pilih level', () => go(levelsScene), { color: C.acc });
+            if (ok && lv.n === 5) txt('Semua level selesai. Selamat!', W / 2, y + 446, { s: 14, a: 'center', c: C.warn });
+        }
+    };
+}
+
+/* ================================================================
+   LEVEL 1 — 3 STUDI KASUS
+   ================================================================ */
+const CASES = [
+    {
+        kode: 'A', judul: 'Instalasi Kabel LAN Laboratorium Komputer', lokasi: 'Lab Komputer', lokasiIcon: 'loc_lab',
+        cerita: 'Laboratorium komputer memiliki 20 unit PC yang belum terhubung jaringan. Kamu diminta mempersiapkan alat untuk membuat kabel LAN jenis straight-through.',
+        tugas: 'Ambil 6 peralatan yang dibutuhkan untuk membuat kabel LAN straight-through!',
+        dialog: [
+            'Halo! Saya Andi, teknisi jaringan SMK Nusantara. Hari ini tugasmu di Lab Komputer — kita harus bikin kabel LAN straight-through untuk 20 PC baru.',
+            'Kabel straight-through butuh alat dan bahan khusus. Pilih yang benar ya, jangan asal ambil.'
+        ],
+        andiDone: 'Luar biasa! Semua peralatan sudah tepat. Kamu siap melakukan crimping kabel di Lab Komputer.',
+        benar: [
+            { id: 'utp', label: 'Kabel UTP Cat5e', why: 'Kabel UTP Cat5e adalah media transmisi utama pada jaringan LAN.' },
+            { id: 'rj45', label: 'Konektor RJ-45', why: 'Konektor RJ-45 dipasang di kedua ujung kabel UTP.' },
+            { id: 'crimp', label: 'Crimping Tool', why: 'Crimping tool menekan kontak RJ-45 agar menembus serat kabel.' },
+            { id: 'tester', label: 'LAN Tester', why: 'LAN tester memeriksa urutan dan kontinuitas kabel hasil crimping.' },
+            { id: 'strip', label: 'Cable Stripper', why: 'Cable stripper mengupas selubung luar kabel tanpa melukai isinya.' },
+            { id: 'sarung_tangan', label: 'Sarung Tangan', why: 'Sarung tangan melindungi tangan dari potongan kabel saat bekerja.' }
+        ],
+        salah: [
+            { id: 'hdmi', label: 'Kabel HDMI', why: 'Kabel HDMI untuk sinyal video/audio, bukan kabel jaringan.' },
+            { id: 'solder', label: 'Solder', why: 'Konektor RJ-45 tidak disolder, tetapi di-crimp.' },
+            { id: 'speaker', label: 'Speaker', why: 'Speaker bukan perlengkapan instalasi jaringan.' },
+            { id: 'flashdisk', label: 'Flashdisk', why: 'Flashdisk adalah media penyimpanan, bukan alat instalasi.' },
+            { id: 'obeng', label: 'Obeng', why: 'Obeng bukan alat yang dipakai saat membuat kabel UTP.' },
+            { id: 'switch', label: 'Switch Jaringan', why: 'Switch adalah perangkat jaringan, bukan alat untuk membuat kabel.' },
+            { id: 'tang', label: 'Tang Kombinasi', why: 'Tang kombinasi bukan alat khusus untuk crimping RJ-45.' }
+        ]
+    },
+    {
+        kode: 'C', judul: 'Perbaikan Kabel LAN Putus di Lab 2', lokasi: 'Lab Komputer 2', lokasiIcon: 'loc_repair',
+        cerita: 'Kabel LAN di Lab 2 putus digigit tikus. Kamu harus menyambung ulang kabel tersebut agar jaringan kembali normal.',
+        tugas: 'Ambil 6 peralatan yang dibutuhkan untuk menyambung ulang kabel LAN yang putus!',
+        dialog: [
+            'Halo, teknisi junior! Hari ini ada masalah di Lab 2 — kabel LAN-nya putus digigit tikus. Kita harus sambung ulang.',
+            'Perbaikan kabel butuh ketelitian. Alat yang dipakai sebagian sama dengan pasang baru, tapi ada beberapa alat yang justru tidak boleh dipakai.'
+        ],
+        andiDone: 'Bagus! Peralatan sudah siap. Sekarang kita bisa sambung ulang kabel yang putus di Lab 2.',
+        benar: [
+            { id: 'utp', label: 'Kabel UTP Cat5e', why: 'Kabel UTP pengganti untuk bagian yang putus.' },
+            { id: 'rj45', label: 'Konektor RJ-45', why: 'RJ-45 baru dipasang setelah sambungan dirapikan.' },
+            { id: 'crimp', label: 'Crimping Tool', why: 'Crimping tool mengunci RJ-45 baru di ujung kabel.' },
+            { id: 'tester', label: 'LAN Tester', why: 'LAN tester memastikan sambungan ulang bekerja normal.' },
+            { id: 'strip', label: 'Cable Stripper', why: 'Cable stripper mengupas selubung kabel dengan rapi.' },
+            { id: 'sarung_tangan', label: 'Sarung Tangan', why: 'Sarung tangan melindungi tangan saat memperbaiki kabel.' }
+        ],
+        salah: [
+            { id: 'gunting', label: 'Gunting Kertas', why: 'Gunting kertas tidak dirancang untuk memotong kabel UTP.' },
+            { id: 'isolasi', label: 'Isolasi Listrik', why: 'Isolasi bukan pengganti konektor RJ-45 yang benar.' },
+            { id: 'tang', label: 'Tang Kombinasi', why: 'Tang kombinasi bukan alat khusus crimping RJ-45.' },
+            { id: 'multimeter', label: 'Multimeter', why: 'Multimeter untuk listrik, LAN diuji pakai LAN tester.' },
+            { id: 'solder', label: 'Solder', why: 'Sambungan kabel UTP tidak disolder.' },
+            { id: 'switch', label: 'Switch Jaringan', why: 'Switch adalah perangkat jaringan, bukan alat perbaikan kabel.' },
+            { id: 'obeng', label: 'Obeng', why: 'Obeng bukan alat untuk menyambung kabel UTP.' }
+        ]
+    },
+    {
+        kode: 'H', judul: 'Jalur Kabel LAN Outdoor antar Gedung', lokasi: 'Luar Ruangan', lokasiIcon: 'loc_outdoor',
+        cerita: 'Hubungkan Lab TKJ ke ruang UKS yang berbeda gedung, jarak 40 meter. Kabel akan terkena panas dan hujan setiap hari.',
+        tugas: 'Pilih 6 peralatan yang tepat untuk instalasi kabel LAN outdoor!',
+        dialog: [
+            'Halo! Kali ini tantangannya lebih seru — kita harus hubungkan Lab TKJ ke ruang UKS yang beda gedung, jarak 40 meter.',
+            'Kabelnya kena panas dan hujan langsung. Jadi harus pilih kabel outdoor, bukan kabel indoor biasa. Yuk siapkan alatnya!'
+        ],
+        andiDone: 'Mantap! Kabel outdoor-nya sudah ada. Sekarang kita bisa hubungkan Lab TKJ ke UKS tanpa takut kena hujan.',
+        benar: [
+            { id: 'utp_out', label: 'Kabel UTP Outdoor', why: 'Kabel UTP outdoor tahan panas, hujan, dan sinar UV.' },
+            { id: 'rj45', label: 'Konektor RJ-45', why: 'RJ-45 tetap dipakai di kedua ujung kabel outdoor.' },
+            { id: 'crimp', label: 'Crimping Tool', why: 'Crimping tool mengunci RJ-45 pada kabel outdoor.' },
+            { id: 'tester', label: 'LAN Tester', why: 'LAN tester memverifikasi kabel sebelum dipasang permanen.' },
+            { id: 'strip', label: 'Cable Stripper', why: 'Cable stripper mengupas jaket luar kabel outdoor.' },
+            { id: 'sarung_tangan', label: 'Sarung Tangan', why: 'Sarung tangan melindungi dari serpihan kabel outdoor.' }
+        ],
+        salah: [
+            { id: 'utp_in', label: 'Kabel UTP Indoor Biasa', why: 'Kabel indoor tidak tahan panas & hujan, cepat rusak di luar ruangan.' },
+            { id: 'coaxial', label: 'Kabel Coaxial', why: 'Coaxial adalah kabel lama (TV/BNC), bukan standar LAN modern.' },
+            { id: 'bnc', label: 'Konektor BNC', why: 'BNC untuk coaxial, bukan kabel UTP.' },
+            { id: 'solder', label: 'Solder', why: 'Sambungan kabel UTP tidak menggunakan solder.' },
+            { id: 'palu', label: 'Palu', why: 'Palu bukan alat pemasangan kabel UTP.' },
+            { id: 'tang', label: 'Tang Kombinasi', why: 'Tang kombinasi bukan alat khusus crimping RJ-45.' },
+            { id: 'switch', label: 'Switch Jaringan', why: 'Switch adalah perangkat jaringan, bukan alat instalasi.' }
+        ]
+    }
+];
+
+function makeL1() {
+    const K = CASES[Math.floor(Math.random() * CASES.length)];
+    const lv = baseLevel(1, 'Persiapan Alat & Bahan');
+    lv.kase = K; lv.phase = 'brief'; lv.page = 0; lv.shown = 0; lv.tPrev = performance.now();
+    lv.fbMode = false; lv.savedElapsed = 0; lv.fly = null; lv.drag = null; lv.got = [];
+    lv.hoverIt = null; lv.reaction = null; lv.reactUntil = 0;
+    lv.limit = 75; lv.combo = 0; lv.maxCombo = 0; lv.particles = [];
+    lv.wrongPicks = []; lv.quizIdx = 0;
+    lv.quizzes = [
+        { q: 'Alat apa yang digunakan untuk mengupas selubung luar kabel UTP tanpa melukai konduktor di dalamnya?', opts: ['Cable Stripper', 'Crimping Tool', 'Tang Kombinasi', 'Obeng'], ans: 0, why: 'Cable stripper dirancang khusus untuk mengupas jaket luar kabel dengan rapi.' },
+        { q: 'Mengapa instalasi kabel LAN outdoor membutuhkan kabel khusus, bukan kabel indoor biasa?', opts: ['Kabel outdoor lebih murah', 'Kabel outdoor tahan panas, hujan, dan sinar UV', 'Kabel outdoor tidak membutuhkan RJ-45', 'Tidak ada perbedaan signifikan'], ans: 1, why: 'Kabel UTP outdoor memiliki pelindung tahan cuaca dan tahan air.' }
+    ];
+    const G = CABG;
+    const TB = { x: 656, y: 118, w: 288, h: 418 };
+    lv.TB = TB;
+    lv.tilt = { x: 0, y: 0 }; lv.off = { x: 0, y: 0 }; lv.cabShake = 0;
+    lv.wrongCard = null; lv.doorT0 = performance.now(); lv.doorOpen = 0;
+    lv.bgSpr = buildRoom(K); lv.cabSpr = cabinetSprite();
+    const pool = [];
+    K.benar.forEach(t => pool.push({ ...t, ok: true }));
+    K.salah.forEach(t => pool.push({ ...t, ok: false }));
+    shuffle(pool);
+    const rows = [{ n: 5, cy: 230, board: 276, peg: true }, { n: 4, cy: 344, board: 390, peg: false }, { n: 4, cy: 458, board: 500, peg: false }];
+    let idx = 0;
+    const innerX0 = G.IX + 8, innerW = G.IW - 16;
+    for (const row of rows) {
+        for (let i = 0; i < row.n && idx < pool.length; i++, idx++) {
+            const it = pool[idx];
+            it.cx = innerX0 + (i + 0.5) * innerW / row.n; it.cy = row.cy;
+            it.board = row.board; it.peg = row.peg; it.depth = Math.random();
+            it.scale = 0.94 + Math.random() * 0.12; it.ph = Math.random() * 6.28;
+            it.jag = (Math.random() - 0.5) * 0.10;
+            it.done = false; it.wrong = false; it.bounce = null;
+            it.appearAt = 0; it.sx = it.cx; it.sy = it.cy; it.ss = 1;
+        }
+    }
+    lv.items = pool;
+    const spriteBase = 118; const hitR = 60;
+    function slotRect(i) {
+        const col = i % 2, row = (i / 2) | 0;
+        const pw = (TB.w - 44) / 2, ph = 92;
+        return { x: TB.x + 16 + col * (pw + 12), y: TB.y + 104 + row * (ph + 12), w: pw, h: ph };
+    }
+    const inBox = (p) => p.x >= TB.x - 6 && p.x <= TB.x + TB.w + 6 && p.y >= TB.y - 6 && p.y <= TB.y + TB.h + 6;
+    function startPlay() {
+        lv.phase = 'play'; lv.t0 = performance.now(); lv.tPrev = performance.now(); lv.doorT0 = performance.now();
+        const t0 = performance.now();
+        lv.items.forEach((it, i) => { it.appearAt = t0 + 620 + i * 42; });
+        say('Buka lemari alat, pilih alat yang tepat, lalu masukkan ke kotak peralatan. Batas waktu 75 detik!', 'info');
+    }
+    function advance() {
+        const d = K.dialog;
+        if (lv.page < d.length) { if (lv.shown < d[lv.page].length) { lv.shown = d[lv.page].length; return; } lv.page++; lv.shown = 0; }
+    }
+    function react(mood) { lv.reaction = mood; lv.reactUntil = performance.now() + 1600; }
+    function spawnParticles(x, y, color) {
+        if (lv.particles.length > 90) return;
+        for (let i = 0; i < 12; i++) {
+            lv.particles.push({ x, y, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8 - 3, life: 1, decay: 0.018 + Math.random() * 0.016, size: 2 + Math.random() * 3, c: color });
+        }
+    }
+    function collect(it) {
+        if (lv.phase !== 'play' || it.done || it.wrong || lv.doorOpen < 0.8) return;
+        if (it.ok) {
+            it.done = true; lv.combo++;
+            lv.maxCombo = Math.max(lv.maxCombo, lv.combo);
+            const bonus = Math.min(10, (lv.combo - 1) * 2);
+            lv.score = Math.min(100, lv.score + bonus);
+            spawnParticles(it.sx, it.sy, C.ok);
+            const slot = lv.got.length; lv.got.push(it);
+            const sr = slotRect(slot);
+            lv.fly = { id: it.id, t0: performance.now(), from: { x: it.sx, y: it.sy }, to: { x: sr.x + 34, y: sr.y + sr.h / 2 } };
+            react('happy');
+            if (lv.combo >= 2) say('Combo x' + lv.combo + '! +' + bonus + ' poin bonus', 'ok');
+            if (lv.got.length === 6) {
+                const elapsed = lv.elapsed();
+                let speedBonus = 0;
+                if (elapsed < 30) speedBonus = 10;
+                else if (elapsed < 45) speedBonus = 5;
+                if (speedBonus > 0) { lv.score = Math.min(100, lv.score + speedBonus); say('Bonus kecepatan +' + speedBonus + ' poin!', 'ok'); }
+                say('Semua peralatan lengkap! Kotak peralatan siap dipakai.', 'ok');
+                lv.fbMode = true; lv.savedElapsed = Math.round(elapsed); lv.phase = 'feedback';
+            }
+        } else {
+            it.wrong = true;
+            it.bounce = { t0: performance.now(), fx: it.sx, fy: it.sy };
+            lv.combo = 0; lv.cabShake = 11;
+            spawnParticles(it.sx, it.sy, C.bad);
+            lv.penalize(10, it.label + ': ' + it.why);
+            lv.wrongCard = { it, until: performance.now() + 3600 };
+            react('sad');
+        }
+    }
+    function toolPos(it, now) {
+        const ap = it.appearAt ? clamp((now - it.appearAt) / 280, 0, 1) : 1;
+        const ease = 1 - Math.pow(1 - ap, 3);
+        const hov = lv.hoverIt === it && !lv.drag;
+        const bob = Math.sin(now / 640 + it.ph) * 1.4;
+        let x = it.cx, y = it.cy - it.depth * 9 + bob - (1 - ease) * 30 + (hov ? -8 : 0);
+        let s = it.scale * (1 - it.depth * 0.09) * (0.55 + 0.45 * ease) * (hov ? 1.10 : 1);
+        if (it.bounce) {
+            const bp = clamp((now - it.bounce.t0) / 420, 0, 1);
+            const be = 1 - Math.pow(1 - bp, 2);
+            const tx = it.cx + lv.off.x, ty = it.cy - it.depth * 9 + lv.off.y;
+            x = it.bounce.fx + (tx - it.bounce.fx) * be;
+            y = it.bounce.fy + (ty - it.bounce.fy) * be - Math.sin(bp * Math.PI) * 46;
+            x -= lv.off.x; y -= lv.off.y;
+            if (bp >= 1) it.bounce = null;
+        }
+        return { x, y, s };
+    }
+    function drawOneTool(it, now, dragging, screenX, screenY) {
+        const p = toolPos(it, now);
+        const cx = dragging ? screenX : p.x, cy = dragging ? screenY : p.y;
+        const size = spriteBase * p.s * (dragging ? 1.05 : 1);
+        if (!dragging) { it.sx = cx + lv.off.x; it.sy = cy + lv.off.y; it.ss = p.s; }
+        const hov = !dragging && lv.hoverIt === it && !it.wrong;
+        ctx.beginPath(); ctx.ellipse(cx, cy + size * 0.30, size * (hov ? 0.34 : 0.27), size * (hov ? 0.085 : 0.065), 0, 0, 6.3);
+        ctx.fillStyle = 'rgba(0,0,0,' + (hov ? 0.48 : 0.36) + ')'; ctx.fill();
+        if (hov) {
+            const gg = ctx.createRadialGradient(cx, cy, 3, cx, cy, size * 0.62);
+            gg.addColorStop(0, 'rgba(56,189,248,.32)'); gg.addColorStop(1, 'rgba(56,189,248,0)');
+            ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(cx, cy, size * 0.62, 0, 6.3); ctx.fill();
+        }
+        ctx.save(); if (it.wrong) ctx.globalAlpha = 0.42;
+        drawSprite(it.id, cx, cy, size, dragging ? Math.sin(now / 260) * 0.10 : 0);
+        ctx.restore();
+        if (it.wrong) crossIcon(cx + size * 0.28, cy - size * 0.26, 20, C.bad);
+    }
+    function drawPlates(now) {
+        for (const it of lv.items) {
+            if (it.done) continue;
+            const pw = 104, ph = 15;
+            const px = it.cx - pw / 2, py = it.board + 4;
+            rr(px, py, pw, ph, 4);
+            ctx.fillStyle = it.wrong ? 'rgba(70,25,30,.85)' : 'rgba(8,17,30,.82)'; ctx.fill();
+            ctx.strokeStyle = it.wrong ? 'rgba(248,113,113,.5)' : (lv.hoverIt === it ? C.acc : 'rgba(80,120,160,.5)');
+            ctx.lineWidth = 1.2; ctx.stroke();
+            const nm = wrapLines(it.label, pw - 8, 9.5, 700)[0];
+            txt(nm, it.cx, py + 11, { s: 9.5, a: 'center', w: 700, c: it.wrong ? '#fca5a5' : (lv.hoverIt === it ? '#eaf2fb' : '#9db2c8') });
+        }
+    }
+    function doorLeaf(hx, w, top, h, side) {
+        const x0 = Math.min(hx, hx + w), ww = Math.abs(w);
+        if (ww < 0.8) return;
+        const x1 = x0 + ww;
+        const gd = ctx.createLinearGradient(x0, 0, x1, 0);
+        if (side < 0) { gd.addColorStop(0, '#4d6f92'); gd.addColorStop(.45, '#3a5875'); gd.addColorStop(1, '#233749'); }
+        else { gd.addColorStop(0, '#233749'); gd.addColorStop(.55, '#3a5875'); gd.addColorStop(1, '#4d6f92'); }
+        rr(x0, top, ww, h, 5); ctx.fillStyle = gd; ctx.fill();
+        ctx.strokeStyle = 'rgba(175,215,255,.30)'; ctx.lineWidth = 2; ctx.stroke();
+        if (ww > 14) { rr(x0 + 6, top + 6, ww - 12, h - 12, 4); ctx.strokeStyle = 'rgba(200,232,255,.13)'; ctx.lineWidth = 2; ctx.stroke(); }
+        const hxp = side < 0 ? x1 - 9 : x0 + 9;
+        rr(hxp - 3.5, top + h * 0.46, 7, 34, 3.5); ctx.fillStyle = '#cfe4f7'; ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    function drawDoors(now) {
+        const o = lv.doorOpen;
+        if (o >= 0.999) return;
+        const e = 1 - Math.pow(1 - o, 3);
+        const ang = e * 96 * Math.PI / 180;
+        const halfW = G.FW / 2 - 4;
+        const w = halfW * Math.cos(ang);
+        const sinA = Math.sin(ang);
+        const baseH = G.FH - 16;
+        const dh = baseH * (1 + 0.06 * sinA);
+        const top = G.FY + 8 - (dh - baseH) / 2 + 7 * sinA;
+        ctx.save(); ctx.translate(lv.off.x, lv.off.y);
+        doorLeaf(G.FX + 4, w, top, dh, -1);
+        doorLeaf(G.FX + G.FW - 4, -w, top, dh, +1);
+        if (o < 0.9) { ctx.fillStyle = 'rgba(0,0,0,' + (0.28 * (1 - o)) + ')'; ctx.fillRect(G.IX, G.IY, G.IW, G.IH); }
+        ctx.restore();
+    }
+    function drawToolbox(now) {
+        const TX = TB.x, TY = TB.y, TW = TB.w, TH = TB.h;
+        ctx.beginPath(); ctx.ellipse(TX + TW / 2 + 10, TY + TH + 6, TW * 0.55, 20, 0, 0, 6.3);
+        ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(TX + 12, TY + 54); ctx.lineTo(TX + TW - 12, TY + 54);
+        ctx.lineTo(TX + TW - 30, TY + 6); ctx.lineTo(TX + 30, TY + 6); ctx.closePath();
+        let lg = ctx.createLinearGradient(0, TY + 6, 0, TY + 54);
+        lg.addColorStop(0, '#2b4664'); lg.addColorStop(1, '#16263a');
+        ctx.fillStyle = lg; ctx.fill(); ctx.strokeStyle = '#4f7296'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(TX + TW / 2 - 46, TY + 8); ctx.quadraticCurveTo(TX + TW / 2, TY - 16, TX + TW / 2 + 46, TY + 8);
+        ctx.strokeStyle = '#8fb0d0'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.stroke();
+        rr(TX, TY + 46, TW, TH - 46, 16);
+        let bgd = ctx.createLinearGradient(TX, TY + 46, TX + TW, TY + TH);
+        bgd.addColorStop(0, '#28405c'); bgd.addColorStop(.5, '#1b2d43'); bgd.addColorStop(1, '#111e2e');
+        ctx.fillStyle = bgd; ctx.fill(); ctx.strokeStyle = '#5b82a8'; ctx.lineWidth = 2.5; ctx.stroke();
+        ctx.save(); rr(TX, TY + 46, TW, TH - 46, 16); ctx.clip();
+        ctx.fillStyle = 'rgba(255,255,255,.10)'; ctx.fillRect(TX, TY + 46, TW, 4);
+        ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(TX, TY + TH - 12, TW, 12);
+        ctx.restore();
+        txt('KOTAK PERALATAN', TX + 16, TY + 74, { s: 15, f: FONT_H, c: C.acc, w: 600 });
+        txt(lv.got.length + ' / 6', TX + TW - 16, TY + 74, { s: 14, a: 'right', c: lv.got.length === 6 ? C.ok : C.mute, w: 800 });
+        let mood = 'idle';
+        if (now < lv.reactUntil && lv.reaction) mood = lv.reaction;
+        drawAndiFace(TX + TW - 26, TY + 96, 15, mood, now / 1000);
+        txt(lv.got.length === 6 ? 'Siap!' : mood === 'sad' ? 'Hmm…' : mood === 'happy' ? 'Bagus!' : 'Isi alat', TX + TW - 48, TY + 100, { s: 10.5, a: 'right', c: C.mute, w: 700 });
+        for (let i = 0; i < 6; i++) {
+            const r = slotRect(i), g = lv.got[i];
+            rr(r.x, r.y, r.w, r.h, 10);
+            ctx.fillStyle = g ? 'rgba(52,211,153,.13)' : 'rgba(6,14,26,.75)'; ctx.fill();
+            ctx.lineWidth = g ? 2 : 1.5;
+            ctx.strokeStyle = g ? C.ok : (lv.drag && inBox(mouse) ? C.acc : 'rgba(70,105,145,.65)');
+            ctx.stroke();
+            rr(r.x + 3, r.y + 3, r.w - 6, 6, 3);
+            ctx.fillStyle = 'rgba(255,255,255,.10)'; ctx.fill();
+            if (g) {
+                drawSprite(g.id, r.x + r.w / 2, r.y + r.h / 2 - 6, 62);
+                const nm = wrapLines(g.label, r.w - 12, 10, 700)[0];
+                txt(nm, r.x + r.w / 2, r.y + r.h - 8, { s: 10, a: 'center', w: 700, c: '#d7e6f5' });
+                tickIcon(r.x + r.w - 16, r.y + 16, 11, C.ok);
+            } else {
+                txt('Slot ' + (i + 1), r.x + r.w / 2, r.y + r.h / 2 + 4, { s: 12, a: 'center', c: 'rgba(90,120,155,.85)', w: 700 });
+            }
+        }
+        const pbY = TY + TH - 14;
+        rr(TX + 16, pbY, TW - 32, 8, 4); ctx.fillStyle = 'rgba(6,14,26,.9)'; ctx.fill();
+        if (lv.got.length > 0) { rr(TX + 16, pbY, (TW - 32) * (lv.got.length / 6), 8, 4); ctx.fillStyle = C.ok; ctx.fill(); }
+        if (lv.combo >= 2) txt('Combo x' + lv.combo + '!', TX + TW / 2, TY + TH + 26, { s: 15, a: 'center', c: C.warn, f: FONT_H });
+    }
+    function drawWrongCard(now) {
+        if (!lv.wrongCard) return;
+        const age = (now - (lv.wrongCard.until - 3600)) / 3600;
+        if (age >= 1) { lv.wrongCard = null; return; }
+        const a = age > 0.86 ? Math.max(0, (1 - age) / 0.14) : Math.min(1, age / 0.10);
+        const cw = 460, ch = 96;
+        const cx = G.FX + G.FW / 2 - cw / 2, cy = G.FY + G.FH - ch - 26;
+        ctx.save(); ctx.globalAlpha = a;
+        rr(cx, cy, cw, ch, 12);
+        ctx.fillStyle = 'rgba(38,12,16,.96)'; ctx.fill();
+        ctx.strokeStyle = C.bad; ctx.lineWidth = 2; ctx.stroke();
+        drawSprite(lv.wrongCard.it.id, cx + 46, cy + ch / 2, 62);
+        txt('Kurang tepat: ' + lv.wrongCard.it.label, cx + 86, cy + 32, { s: 14, w: 800, c: '#fecaca' });
+        const L = wrapLines(lv.wrongCard.it.why, cw - 104, 12.5, 600).slice(0, 3);
+        L.forEach((l, i) => txt(l, cx + 86, cy + 52 + i * 16, { s: 12.5, c: '#f3c9cd', w: 600 }));
+        ctx.restore();
+    }
+    function drawBrief(now) {
+        const t = now / 1000;
+        bg(false);
+        for (let i = 0; i < 30; i++) {
+            const x = ((i * 173 + t * 22) % (W + 100)) - 50;
+            const y = 72 + ((i * 97) % 470);
+            const a = 0.05 + 0.07 * (0.5 + 0.5 * Math.sin(t * 1.4 + i));
+            ctx.beginPath(); ctx.arc(x, y, 1.4 + (i % 3), 0, 6.3);
+            ctx.fillStyle = 'rgba(56,189,248,' + a.toFixed(3) + ')'; ctx.fill();
+        }
+        hud(lv);
+        const AP = { x: 20, y: 70, w: 270, h: 490 };
+        rr(AP.x, AP.y, AP.w, AP.h, 18);
+        const ag = ctx.createLinearGradient(0, AP.y, 0, AP.y + AP.h);
+        ag.addColorStop(0, '#1b3350'); ag.addColorStop(1, '#0d1a2b');
+        ctx.fillStyle = ag; ctx.fill();
+        ctx.strokeStyle = 'rgba(56,189,248,.35)'; ctx.lineWidth = 2; ctx.stroke();
+        rr(AP.x + 30, AP.y + 18, AP.w - 60, 26, 13); ctx.fillStyle = 'rgba(56,189,248,.15)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(56,189,248,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+        txt('TEKNISI JARINGAN', AP.x + AP.w / 2, AP.y + 36, { s: 11, a: 'center', c: C.acc, w: 800 });
+        const typing = lv.page < K.dialog.length && lv.shown < K.dialog[lv.page].length;
+        drawAndi(AP.x + AP.w / 2, AP.y + 260, 0.86, typing ? 'talk' : 'idle', t);
+        rr(AP.x + 30, AP.y + 418, AP.w - 60, 44, 10); ctx.fillStyle = 'rgba(56,189,248,.12)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(56,189,248,.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+        txt('Andi', AP.x + AP.w / 2, AP.y + 440, { s: 16, a: 'center', w: 800, c: C.text });
+        txt('Teknisi Senior \u00b7 SMK Nusantara', AP.x + AP.w / 2, AP.y + 455, { s: 10.5, a: 'center', c: C.mute });
+        const RP = { x: 306, y: 70, w: 634, h: 490 };
+        if (lv.page < K.dialog.length) {
+            const full = K.dialog[lv.page];
+            const shownText = full.slice(0, lv.shown);
+            rr(RP.x, RP.y, RP.w, RP.h, 18);
+            ctx.fillStyle = C.panel; ctx.fill();
+            ctx.strokeStyle = 'rgba(56,189,248,.5)'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(RP.x, RP.y + 120); ctx.lineTo(RP.x - 18, RP.y + 140); ctx.lineTo(RP.x, RP.y + 160); ctx.closePath();
+            ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = 'rgba(56,189,248,.5)'; ctx.stroke();
+            ctx.beginPath(); ctx.arc(RP.x + 30, RP.y + 30, 15, 0, 6.3); ctx.fillStyle = '#1d4ed8'; ctx.fill();
+            txt('A', RP.x + 30, RP.y + 36, { s: 15, a: 'center', c: '#fff', w: 800 });
+            txt('Andi \u00b7 Teknisi Senior', RP.x + 54, RP.y + 36, { s: 14, c: C.acc, w: 800 });
+            const chipW = 150, chipX = RP.x + RP.w - chipW - 16;
+            rr(chipX, RP.y + 16, chipW, 30, 15); ctx.fillStyle = 'rgba(212,167,44,.18)'; ctx.fill();
+            ctx.strokeStyle = 'rgba(212,167,44,.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+            icon(K.lokasiIcon, chipX + 18, RP.y + 31, 0.5);
+            txt(K.lokasi, chipX + chipW / 2 + 10, RP.y + 36, { s: 12, a: 'center', c: C.warn, w: 800 });
+            para(shownText, RP.x + 30, RP.y + 95, RP.w - 60, 28, { s: 18, c: C.text, w: 600 });
+            if (!typing) {
+                const pulse = 0.5 + 0.5 * Math.sin(t * 4);
+                txt('Klik untuk melanjutkan', RP.x + RP.w - 30, RP.y + RP.h - 30, { s: 12.5, a: 'right', c: 'rgba(157,178,200,' + (0.5 + 0.5 * pulse).toFixed(2) + ')' });
+                ctx.beginPath(); ctx.moveTo(RP.x + RP.w - 38, RP.y + RP.h - 42 + 2 * pulse); ctx.lineTo(RP.x + RP.w - 26, RP.y + RP.h - 42 + 2 * pulse); ctx.lineTo(RP.x + RP.w - 32, RP.y + RP.h - 34 + 2 * pulse); ctx.closePath();
+                ctx.fillStyle = 'rgba(157,178,200,' + (0.6 + 0.4 * pulse).toFixed(2) + ')'; ctx.fill();
+            } else txt('\u2026', RP.x + RP.w - 30, RP.y + RP.h - 30, { s: 14, a: 'right', c: C.mute });
+            K.dialog.forEach((_, i) => {
+                const cx = RP.x + RP.w / 2 - (K.dialog.length - 1) * 11 + i * 22;
+                ctx.beginPath(); ctx.arc(cx, RP.y + RP.h - 22, 5, 0, 6.3);
+                ctx.fillStyle = i === lv.page ? C.acc : '#2a3a4e'; ctx.fill();
+            });
+        } else {
+            const x = RP.x + 14, y = RP.y + 10, w = RP.w - 28, h = RP.h - 20;
+            rr(x, y, w, h, 20);
+            const cg = ctx.createLinearGradient(0, y, 0, y + h);
+            cg.addColorStop(0, '#1e3a5c'); cg.addColorStop(1, '#132639');
+            ctx.fillStyle = cg; ctx.fill();
+            ctx.strokeStyle = 'rgba(212,167,44,.6)'; ctx.lineWidth = 2; ctx.stroke();
+            rr(x + 24, y + 22, 180, 30, 15); ctx.fillStyle = 'rgba(212,167,44,.2)'; ctx.fill();
+            ctx.strokeStyle = 'rgba(212,167,44,.7)'; ctx.lineWidth = 1.5; ctx.stroke();
+            txt('STUDI KASUS ' + K.kode, x + 114, y + 43, { s: 13, a: 'center', c: C.warn, w: 800 });
+            const lw = 190, lx = x + w - lw - 24;
+            rr(lx, y + 22, lw, 30, 15); ctx.fillStyle = 'rgba(56,189,248,.14)'; ctx.fill();
+            ctx.strokeStyle = 'rgba(56,189,248,.45)'; ctx.lineWidth = 1.5; ctx.stroke();
+            icon(K.lokasiIcon, lx + 20, y + 37, 0.55);
+            txt(K.lokasi, lx + lw / 2 + 12, y + 42, { s: 12.5, a: 'center', c: C.acc, w: 800 });
+            txt(K.judul, x + 24, y + 86, { s: 23, f: FONT_H, w: 600, c: C.text });
+            ctx.beginPath(); ctx.moveTo(x + 24, y + 106); ctx.lineTo(x + w - 24, y + 106);
+            ctx.strokeStyle = 'rgba(157,178,200,.3)'; ctx.lineWidth = 1.5; ctx.stroke();
+            txt('Cerita', x + 24, y + 136, { s: 13, c: C.acc, w: 800 });
+            para(K.cerita, x + 24, y + 162, w - 48, 23, { s: 14.5, c: C.text, w: 600 });
+            rr(x + 24, y + 270, w - 48, 100, 12);
+            ctx.fillStyle = 'rgba(52,211,153,.12)'; ctx.fill();
+            ctx.strokeStyle = 'rgba(52,211,153,.55)'; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.beginPath(); ctx.arc(x + 52, y + 300, 14, 0, 6.3); ctx.fillStyle = C.ok; ctx.fill();
+            tickIcon(x + 52, y + 300, 15, '#04160f');
+            txt('TUGAS KAMU', x + 78, y + 296, { s: 11.5, c: C.ok, w: 800 });
+            para(K.tugas, x + 78, y + 318, w - 108, 20, { s: 14, c: C.text, w: 700 });
+            btn(x + w / 2 - 145, y + h - 72, 290, 52, 'Mulai Misi \u25b8', () => startPlay(), { s: 18, color: C.ok });
+        }
+    }
+    function pickTool(p) {
+        let best = null, bd = 1e9;
+        for (const it of lv.items) {
+            if (it.done || it.wrong) continue;
+            const d = Math.hypot(p.x - it.sx, p.y - it.sy);
+            if (d < hitR * (it.ss || 1) && d < bd) { bd = d; best = it; }
+        }
+        return best;
+    }
+    function drawPlay(now) {
+        ctx.drawImage(lv.bgSpr, 0, 0);
+        hud(lv);
+        const mxs = mouse.x >= 0 ? mouse.x : W / 2;
+        const mys = mouse.y >= 0 ? mouse.y : H / 2;
+        const txx = clamp((mxs - W / 2) * 0.020, -9, 9);
+        const tyy = clamp((mys - H / 2) * 0.014, -7, 7);
+        lv.tilt.x += (txx - lv.tilt.x) * 0.10;
+        lv.tilt.y += (tyy - lv.tilt.y) * 0.10;
+        lv.cabShake *= 0.84;
+        if (lv.cabShake < 0.4) lv.cabShake = 0;
+        lv.off.x = lv.tilt.x + (Math.random() - 0.5) * lv.cabShake;
+        lv.off.y = lv.tilt.y + (Math.random() - 0.5) * lv.cabShake;
+        lv.doorOpen = clamp((now - lv.doorT0) / 950, 0, 1);
+        drawCaseStrip();
+        lv.hoverIt = null;
+        if (lv.phase === 'play' && lv.doorOpen > 0.82 && !lv.drag && mouse.x >= 0) {
+            const h = pickTool(mouse);
+            if (h) { lv.hoverIt = h; hoverBtn = true; }
+        }
+        ctx.drawImage(lv.cabSpr.cn, lv.cabSpr.x + lv.off.x, lv.cabSpr.y + lv.off.y);
+        ctx.save();
+        ctx.translate(lv.off.x, lv.off.y);
+        rr(G.IX - 4, G.IY - 4, G.IW + 8, G.IH + 8, 8); ctx.clip();
+        const sorted = lv.items.slice().sort((a, b) => b.depth - a.depth);
+        for (const it of sorted) { if (it.done || (lv.drag && lv.drag.it === it)) continue; drawOneTool(it, now, false); }
+        drawPlates(now);
+        ctx.restore();
+        drawDoors(now);
+        if (lv.phase === 'play') {
+            const left = lv.limit - lv.elapsed();
+            if (left < 15) {
+                const blink = 0.35 + 0.65 * Math.abs(Math.sin(now / 150));
+                ctx.save(); ctx.globalCompositeOperation = 'lighter';
+                const rg = ctx.createRadialGradient(G.FX + G.FW / 2, G.FY + G.DY - 6, 6, G.FX + G.FW / 2, G.FY + G.DY - 6, 260);
+                rg.addColorStop(0, 'rgba(248,80,80,' + (0.42 * blink).toFixed(3) + ')');
+                rg.addColorStop(1, 'rgba(248,80,80,0)');
+                ctx.fillStyle = rg; ctx.fillRect(G.FX - 40, G.FY - 90, G.FW + 80, 260);
+                ctx.restore();
+                ctx.fillStyle = 'rgba(255,90,90,' + (0.55 + 0.45 * blink).toFixed(2) + ')';
+                rr(G.FX + G.FW / 2 - 88, G.FY + G.DY - 12, 176, 6, 3); ctx.fill();
+            }
+        }
+        if (lv.drag) {
+            drawOneTool(lv.drag.it, now, true, mouse.x, mouse.y);
+            ctx.beginPath(); ctx.setLineDash([6, 7]); ctx.moveTo(mouse.x, mouse.y); ctx.lineTo(TB.x + 40, TB.y + 150);
+            ctx.strokeStyle = 'rgba(56,189,248,.35)'; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
+        }
+        for (let i = lv.particles.length - 1; i >= 0; i--) {
+            const p = lv.particles[i];
+            p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life -= p.decay;
+            if (p.life <= 0) { lv.particles.splice(i, 1); continue; }
+            ctx.globalAlpha = p.life; ctx.fillStyle = p.c;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, 6.3); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        if (lv.fly) {
+            const p = Math.min(1, (now - lv.fly.t0) / 560);
+            const e = 1 - Math.pow(1 - p, 3);
+            const x = lv.fly.from.x + (lv.fly.to.x - lv.fly.from.x) * e;
+            const y = lv.fly.from.y + (lv.fly.to.y - lv.fly.from.y) * e - Math.sin(p * Math.PI) * 86;
+            ctx.save(); ctx.globalAlpha = 1 - p * 0.12;
+            drawSprite(lv.fly.id, x, y, spriteBase * (1 - p * 0.45), p * 4.2);
+            ctx.restore();
+            if (p >= 1) lv.fly = null;
+        }
+        drawToolbox(now);
+        drawWrongCard(now);
+        const timeLeft = Math.max(0, lv.limit - lv.elapsed());
+        const timeFrac = timeLeft / lv.limit;
+        const barW = 300, barH = 7;
+        const barX = W / 2 - barW / 2, barY = 57;
+        rr(barX, barY, barW, barH, 4); ctx.fillStyle = 'rgba(6,14,26,.85)'; ctx.fill();
+        rr(barX, barY, barW * timeFrac, barH, 4);
+        ctx.fillStyle = timeFrac > 0.5 ? C.ok : timeFrac > 0.25 ? C.warn : C.bad;
+        ctx.fill();
+    }
+    function drawCaseStrip() {
+        rr(16, 68, 928, 42, 10);
+        ctx.fillStyle = 'rgba(9,18,31,.88)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(212,167,44,.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+        rr(28, 74, 34, 30, 8); ctx.fillStyle = 'rgba(212,167,44,.18)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(212,167,44,.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+        icon(K.lokasiIcon, 45, 89, 0.58);
+        txt('STUDI KASUS ' + K.kode + '  \u00b7  ' + K.lokasi, 72, 85, { s: 11, c: C.warn, w: 800 });
+        txt(K.judul, 72, 103, { s: 14.5, c: C.text, w: 800 });
+        txt('Klik alat untuk mengambil, atau seret ke kotak peralatan \u25b8', W - 28, 95, { s: 12, a: 'right', c: C.mute, w: 700 });
+    }
+    function drawFeedback(now) {
+        lv.t0 = now - lv.savedElapsed * 1000;
+        const t = now / 1000;
+        bg(false);
+        for (let i = 0; i < 26; i++) {
+            const x = ((i * 211 - t * 16) % (W + 100)) - 50;
+            const y = 72 + ((i * 131) % 470);
+            ctx.beginPath(); ctx.arc(x, y, 1.4 + (i % 3), 0, 6.3);
+            ctx.fillStyle = 'rgba(52,211,153,' + (0.04 + 0.05 * (0.5 + 0.5 * Math.sin(t + i))).toFixed(3) + ')'; ctx.fill();
+        }
+        hud(lv);
+        const card = { x: 120, y: 76, w: 720, h: 448 };
+        rr(card.x, card.y, card.w, card.h, 20);
+        const cg = ctx.createLinearGradient(0, card.y, 0, card.y + card.h);
+        cg.addColorStop(0, '#1e3a5c'); cg.addColorStop(1, '#122436');
+        ctx.fillStyle = cg; ctx.fill();
+        ctx.strokeStyle = 'rgba(52,211,153,.6)'; ctx.lineWidth = 2; ctx.stroke();
+        const errs = lv.mistakes.length;
+        const mood = errs === 0 ? 'happy' : (errs <= 2 ? 'idle' : 'sad');
+        const line = errs === 0 ? K.andiDone : errs <= 2 ? 'Bagus, sebagian besar sudah tepat. Perhatikan lagi fungsi setiap alat ya.' : 'Perhatikan kembali fungsi alat. Teknisi harus memilih alat berdasarkan kebutuhan pekerjaan.';
+        txt('Misi Selesai', card.x + card.w / 2, card.y + 50, { s: 32, f: FONT_H, a: 'center', c: C.ok, w: 600 });
+        txt('Studi Kasus ' + K.kode + ' \u00b7 ' + K.judul, card.x + card.w / 2, card.y + 74, { s: 13, a: 'center', c: C.mute });
+        drawAndi(222, 310, 0.72, mood, t);
+        rr(340, 180, 470, 150, 16); ctx.fillStyle = C.panel; ctx.fill();
+        ctx.strokeStyle = 'rgba(52,211,153,.5)'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(340, 244); ctx.lineTo(316, 258); ctx.lineTo(340, 272); ctx.closePath();
+        ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = 'rgba(52,211,153,.5)'; ctx.stroke();
+        txt('Andi \u00b7 Teknisi Senior', 362, 214, { s: 13, c: C.ok, w: 800 });
+        para(line, 362, 246, 426, 24, { s: 16, c: C.text, w: 600 });
+        const stats = [['Skor akhir', lv.score, C.warn], ['Waktu', fmt(lv.savedElapsed), C.text], ['Kesalahan', String(errs), errs ? C.bad : C.ok]];
+        stats.forEach((s, i) => {
+            const sx = 340 + i * 158, sy = 346, sw = 146, sh = 62;
+            rr(sx, sy, sw, sh, 12); ctx.fillStyle = 'rgba(8,17,30,.65)'; ctx.fill();
+            ctx.strokeStyle = C.line; ctx.lineWidth = 1.5; ctx.stroke();
+            txt(s[0], sx + sw / 2, sy + 24, { s: 11.5, a: 'center', c: C.mute });
+            txt(s[1], sx + sw / 2, sy + 50, { s: 22, a: 'center', c: s[2], f: FONT_H, w: 600 });
+        });
+        btn(card.x + card.w / 2 - 140, 436, 280, 52, 'Lihat Ringkasan \u25b8', () => { lv.phase = 'summary'; }, { s: 18, color: C.ok });
+    }
+    function drawSummary(now) {
+        bg(false);
+        hud(lv);
+        const card = { x: 120, y: 76, w: 720, h: 448 };
+        rr(card.x, card.y, card.w, card.h, 20);
+        const cg = ctx.createLinearGradient(0, card.y, 0, card.y + card.h);
+        cg.addColorStop(0, '#1e3a5c'); cg.addColorStop(1, '#122436');
+        ctx.fillStyle = cg; ctx.fill();
+        ctx.strokeStyle = 'rgba(56,189,248,.6)'; ctx.lineWidth = 2; ctx.stroke();
+        txt('Ringkasan Materi', card.x + card.w / 2, card.y + 44, { s: 28, f: FONT_H, a: 'center', c: C.acc, w: 600 });
+        txt('Alat dan bahan untuk ' + K.judul, card.x + card.w / 2, card.y + 68, { s: 13, a: 'center', c: C.mute });
+        K.benar.forEach((t, i) => {
+            const y = card.y + 100 + i * 56;
+            rr(card.x + 30, y, card.w - 60, 48, 10);
+            ctx.fillStyle = 'rgba(8,17,30,.65)'; ctx.fill();
+            ctx.strokeStyle = C.line; ctx.lineWidth = 1.5; ctx.stroke();
+            icon(t.id, card.x + 58, y + 24, 0.4);
+            txt(t.label, card.x + 88, y + 20, { s: 14, w: 800, c: C.text });
+            const whyLines = wrapLines(t.why, card.w - 180, 11, 600);
+            txt(whyLines[0], card.x + 88, y + 38, { s: 11, c: C.mute, w: 600 });
+        });
+        btn(card.x + card.w / 2 - 120, card.y + card.h - 64, 240, 48, 'Lanjut ke Kuis \u25b8', () => { lv.phase = 'quiz'; }, { s: 16, color: C.acc });
+    }
+    lv.draw = function () {
+        lv.tick();
+        const now = performance.now();
+        if (lv.limit && !lv.finished && lv.phase === 'play' && lv.elapsed() > lv.limit) {
+            lv.finished = true; lv.dur = lv.limit; endLevel(lv, false); return;
+        }
+        if (lv.phase === 'brief') {
+            lv.t0 = now;
+            const dt = Math.min(0.05, (now - lv.tPrev) / 1000); lv.tPrev = now;
+            if (lv.page < K.dialog.length && lv.shown < K.dialog[lv.page].length) {
+                lv.shown = Math.min(K.dialog[lv.page].length, lv.shown + dt * 55);
+            }
+            drawBrief(now); return;
+        }
+        if (lv.fbMode) {
+            if (lv.phase === 'summary') { drawSummary(now); return; }
+            drawFeedback(now);
+            if (lv.phase === 'quiz' || (lv.phase === 'fin' && lv.quizzes)) drawQuiz(lv);
+            return;
+        }
+        drawPlay(now);
+    };
+    lv.down = function (p) {
+        if (lv.phase === 'brief') { if (lv.page < K.dialog.length) advance(); return; }
+        if (lv.phase !== 'play') return;
+        if (lv.wrongCard) {
+            const cw = 460, ch = 96;
+            const cx = G.FX + G.FW / 2 - cw / 2, cy = G.FY + G.FH - ch - 26;
+            if (p.x >= cx && p.x <= cx + cw && p.y >= cy && p.y <= cy + ch) { lv.wrongCard = null; return; }
+        }
+        if (lv.doorOpen < 0.82) return;
+        const it = pickTool(p);
+        if (it) { lv.drag = { it, sx: p.x, sy: p.y }; lv.hoverIt = null; }
+    };
+    lv.move = function () {};
+    lv.up = function (p) {
+        if (!lv.drag) return;
+        const d = lv.drag; lv.drag = null;
+        const dist = Math.hypot(p.x - d.sx, p.y - d.sy);
+        if (inBox(p) || dist < 14) collect(d.it);
+    };
+    return lv;
+}
+
+/* ================================================================
+   LEVEL 2 — Three.js: SATU KABEL dari nol sampai PC→switch
+   Perbaikan tampilan: glove & tool hanya saat aksi, jaket tipis abu,
+   8 kabel tebal menyebar kipas, PIN_BOX di atas tanpa tumpang tindih.
+   ================================================================ */
+function makeL2() {
+    const lv = baseLevel(2, 'Crimping Straight-Through (T568B)');
+    lv.idx = 1; lv.limit = 480;
+
+    const AX = 172, AY = 96, AW = 616, AH = 444;
+    const PL = { x: 8,   y: 96, w: 156, h: 444 };
+    const PR = { x: 796, y: 96, w: 156, h: 444 };
+    const BAR = { x: 172, y: 546, w: 616, h: 46 };
+    const PIN_BOX = { x: AX + 70, y: AY + 40, w: AW - 140, h: 84 };
+
+    const WIRE_IDS = ['wo','o','wg','b','wb','g','wbr','br'];
+    const KAB = {
+        usedCm: 0, rj45Used: 0, lengthCm: 0,
+        glove: false, cut: false, flip: 0, helpUsed: 0,
+        ends: {
+            A: { stripped:false, stripLen:0, fan:shuffle(WIRE_IDS.slice()), slots:new Array(8).fill(null), trimmed:false, conn:'none', jacketIn:false, crimped:false },
+            B: { stripped:false, stripLen:0, fan:shuffle(WIRE_IDS.slice()), slots:new Array(8).fill(null), trimmed:false, conn:'none', jacketIn:false, crimped:false }
+        },
+        test: null
+    };
+
+    const Y_BOT = -3.2, Y_TOP0 = 1.35, CM_TOTAL = 200;
+    const JACK_R = 0.10, WIRE_R = 0.034, BUNDLE_R = 0.080;
+    const TARGET_CM = 150, TOL_CM = 25, SNAP_CM = 14;
+    const STRIP_LEN = 0.55;
+    const TRIM_MIN = 0.24, TRIM_MAX = 0.42;
+    let tipA = Y_TOP0, tipB = Y_BOT, exA = 0.55, exB = 0.55;
+    const cmToY = cm => Y_BOT + (cm/CM_TOTAL)*(Y_TOP0 - Y_BOT);
+    const yToCm = y => (y - Y_BOT)/(Y_TOP0 - Y_BOT)*CM_TOTAL;
+
+    const STEPS = [
+        { id:'glove',  label:'Pakai sarung tangan',       tool:'sarung_tangan', end:'A' },
+        { id:'cut',    label:'Potong kabel ±150 cm',      tool:'gunting',       end:'A' },
+        { id:'stripA', label:'Kupas jaket ujung A',       tool:'strip',         end:'A' },
+        { id:'orderA', label:'Susun warna T568B (A)',     tool:null,            end:'A' },
+        { id:'trimA',  label:'Ratakan ujung A',           tool:'gunting',       end:'A' },
+        { id:'connA',  label:'Pasang konektor RJ-45 (A)', tool:'rj45',          end:'A' },
+        { id:'crimpA', label:'Crimp ujung A',             tool:'crimp',         end:'A' },
+        { id:'stripB', label:'Kupas jaket ujung B',       tool:'strip',         end:'B', fast:true },
+        { id:'orderB', label:'Susun warna T568B (B)',     tool:null,            end:'B', fast:true },
+        { id:'trimB',  label:'Ratakan ujung B',           tool:'gunting',       end:'B', fast:true },
+        { id:'connB',  label:'Pasang konektor RJ-45 (B)', tool:'rj45',          end:'B', fast:true },
+        { id:'crimpB', label:'Crimp ujung B',             tool:'crimp',         end:'B', fast:true },
+        { id:'tester', label:'Uji kabel dengan tester',   tool:'tester',        end:'AB' }
+    ];
+    const TOOLS_L = [
+        { id:'sarung_tangan', name:'Sarung Tangan',  step: 0 },
+        { id:'gunting',       name:'Pemotong Kabel', step: 1 },
+        { id:'strip',         name:'Pengupas Kabel', step: 2 }
+    ];
+    const TOOLS_R = [
+        { id:'rj45',   name:'Konektor RJ-45', step: 5 },
+        { id:'crimp',  name:'Tang Crimping',  step: 6 },
+        { id:'tester', name:'Tester',         step: 12 }
+    ];
+    const TOOL_STEPS = { sarung_tangan:[0], gunting:[1,4,9], strip:[2,7], rj45:[5,10], crimp:[6,11], tester:[12] };
+
+    lv.phase = 'load'; lv.step = 0; lv.tool = null; lv.drag = null; lv.anim = null;
+    lv.modeMudah = !!save.l2.mudah;
+    lv.showSteps = false; lv.showHelp = false;
+    lv.helpFree = 1; lv.helpUntil = 0;
+    lv.andi = 'Halo! Aku Andi. Kita kerjakan SATU kabel ini dari awal sampai lulus uji.';
+    lv.andiUntil = 0;
+    lv.wireSel = null; lv.wireDirty = true;
+    lv.testBad = [];
+    lv.quizIdx = 0; lv.wrongPicks = [];
+    lv.debugMode = false;
+    lv.quizzes = [
+        { q:'Pin 1 pada standar T568B berwarna…', opts:['Putih-Oranye','Oranye','Putih-Hijau','Biru'], ans:0, why:'T568B selalu dimulai Putih-Oranye di pin 1.' },
+        { q:'Mengapa jaket luar kabel harus ikut masuk ke dalam konektor RJ-45?', opts:['Agar warna kabel terlihat','Agar sambungan kuat menahan tarikan','Agar kabel lebih panjang','Agar LED tester menyala'], ans:1, why:'Jaket yang masuk akan terjepit oleh crimp sehingga kuat menahan tarikan.' },
+        { q:'Kabel straight-through dipakai untuk menghubungkan…', opts:['PC ke switch','PC ke PC langsung','Switch ke switch','Router ke router'], ans:0, why:'Straight-through untuk perangkat berbeda. Perangkat sejenis butuh crossover.' },
+        { q:'Alat yang mengunci kontak RJ-45 menembus konduktor adalah…', opts:['Cable stripper','Tang crimping','Multimeter','Tang kombinasi'], ans:1, why:'Tang crimping menekan kontak emas RJ-45 hingga menembus isolasi konduktor.' }
+    ];
+
+    let R = null, raycaster = null, planeZ0 = null;
+    let camFrom = null, camTo = null, camT0 = 0, camDur = 0;
+    let jacketM = null, capTopM = null, capBotM = null;
+    let wireM = {}, connA = null, connB = null;
+    let gloveG = null, cutterG = null, stripG = null, crimpG = null, testerG = null, testerLED = [];
+    let cutPiece = null;
+    const wireMats = {}, _texCache = new Map();
+
+    function stripeTexture(hex) {
+        if (_texCache.has(hex)) return _texCache.get(hex);
+        const c = document.createElement('canvas'); c.width = c.height = 32;
+        const g = c.getContext('2d'); g.fillStyle = '#f2f2ee'; g.fillRect(0,0,32,32);
+        g.strokeStyle = hex; g.lineWidth = 9;
+        for (let i=-32;i<64;i+=13){g.beginPath();g.moveTo(i,32);g.lineTo(i+32,0);g.stroke();}
+        const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2);
+        _texCache.set(hex, t); return t;
+    }
+    function wireMaterial(id) {
+        if (wireMats[id]) return wireMats[id];
+        const d = WC[id];
+        const m = d.st
+            ? new THREE.MeshStandardMaterial({ map: stripeTexture(d.c), roughness:.55, metalness:.05 })
+            : new THREE.MeshStandardMaterial({ color:new THREE.Color(d.c), roughness:.55, metalness:.05 });
+        wireMats[id] = m; return m;
+    }
+    function bgTexture() {
+        const c = document.createElement('canvas'); c.width = c.height = 256;
+        const g = c.getContext('2d');
+        const grd = g.createLinearGradient(0,0,0,256);
+        grd.addColorStop(0,'#101f33'); grd.addColorStop(1,'#070e19');
+        g.fillStyle = grd; g.fillRect(0,0,256,256);
+        g.strokeStyle = 'rgba(120,170,220,.08)'; g.lineWidth = 1;
+        for (let i=0;i<=256;i+=32){g.beginPath();g.moveTo(i,0);g.lineTo(i,256);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(256,i);g.stroke();}
+        const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3,3); return t;
+    }
+    function makeConnector() {
+        const g = new THREE.Group();
+        const clearM = new THREE.MeshStandardMaterial({ color:0xddeaf6, roughness:.22, metalness:.12, transparent:true, opacity:.72 });
+        const goldM  = new THREE.MeshStandardMaterial({ color:0xd4a72c, roughness:.30, metalness:.92 });
+        g.add(new THREE.Mesh(new THREE.BoxGeometry(.34,.42,.30), clearM));
+        const latch = new THREE.Mesh(new THREE.BoxGeometry(.20,.10,.06), clearM); latch.position.set(0,-.26,.13); g.add(latch);
+        for (let i=0;i<8;i++){ const p = new THREE.Mesh(new THREE.BoxGeometry(.022,.10,.014), goldM); p.position.set(-.12 + i*.034, .15, .155); g.add(p); }
+        return g;
+    }
+    function makeCrimpMesh() {
+        const g = new THREE.Group();
+        const steel = new THREE.MeshStandardMaterial({ color:0xc8d2dc, roughness:.30, metalness:.85 });
+        const red   = new THREE.MeshStandardMaterial({ color:0xdc2626, roughness:.60 });
+        const up = new THREE.Mesh(new THREE.BoxGeometry(.30,.10,.28), steel); up.position.set(0,.14,0); g.add(up);
+        const dn = new THREE.Mesh(new THREE.BoxGeometry(.30,.10,.28), steel); dn.position.set(0,-.14,0); g.add(dn);
+        for (let i=0;i<4;i++){ const t = new THREE.Mesh(new THREE.BoxGeometry(.03,.06,.26), steel); t.position.set(-.09+i*.06,0,0); g.add(t); }
+        const h1 = new THREE.Mesh(new THREE.BoxGeometry(.10,.42,.12), red); h1.position.set(-.19,-.46,0); h1.rotation.z=.15; g.add(h1);
+        const h2 = new THREE.Mesh(new THREE.BoxGeometry(.10,.42,.12), red); h2.position.set(.19,-.46,0); h2.rotation.z=-.15; g.add(h2);
+        return g;
+    }
+    function makeGloveMesh() {
+        const g = new THREE.Group();
+        const gm = new THREE.MeshStandardMaterial({ color:0xd93a3a, roughness:.72 });
+        g.add(new THREE.Mesh(new THREE.BoxGeometry(.46,.32,.22), gm));
+        for (let i=0;i<4;i++){ const f = new THREE.Mesh(new THREE.BoxGeometry(.09,.26,.19), gm); f.position.set(-.165 + i*.11, .28, 0); g.add(f); }
+        return g;
+    }
+    function makeStripMesh() {
+        const g = new THREE.Group();
+        const blk = new THREE.MeshStandardMaterial({ color:0xeab308, roughness:.6 });
+        g.add(new THREE.Mesh(new THREE.BoxGeometry(.34,.16,.20), blk));
+        return g;
+    }
+
+    function init3D() {
+        const hemat = save.l2.grafis === 'hemat';
+        const q = hemat ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
+        const rw = Math.max(2, Math.round(AW * q)), rh = Math.max(2, Math.round(AH * q));
+        const renderer = new THREE.WebGLRenderer({ antialias:!hemat, preserveDrawingBuffer:true, powerPreference:'low-power' });
+        renderer.setPixelRatio(1); renderer.setSize(rw, rh, false); renderer.setClearColor(0x0a1626,1);
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(40, AW/AH, .05, 80);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+        const d1 = new THREE.DirectionalLight(0xffffff, 0.95); d1.position.set(1.2, 3, 5); scene.add(d1);
+        const d2 = new THREE.DirectionalLight(0x8ec5ff, 0.35); d2.position.set(-2.5, 1, 2); scene.add(d2);
+
+        const bgp = new THREE.Mesh(new THREE.PlaneGeometry(40,40), new THREE.MeshBasicMaterial({ map:bgTexture() }));
+        bgp.position.set(0,0,-2.6); scene.add(bgp);
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(40,40), new THREE.MeshBasicMaterial({ color:0x060d18 }));
+        floor.rotation.x = -Math.PI/2; floor.position.y = Y_BOT - 0.6; scene.add(floor);
+
+        const grp = new THREE.Group(); scene.add(grp);
+        const jMat = new THREE.MeshStandardMaterial({ color:0x64748b, roughness:.85, metalness:.05 });
+        jacketM = new THREE.Mesh(new THREE.CylinderGeometry(JACK_R, JACK_R, 1, 20, 1, true), jMat); grp.add(jacketM);
+        capTopM = new THREE.Mesh(new THREE.CircleGeometry(JACK_R, 20), jMat); capTopM.rotation.x = -Math.PI/2; grp.add(capTopM);
+        capBotM = new THREE.Mesh(new THREE.CircleGeometry(JACK_R, 20), jMat); capBotM.rotation.x = Math.PI/2; grp.add(capBotM);
+
+        ['A','B'].forEach(end => WIRE_IDS.forEach(id => {
+            const m = new THREE.Mesh(new THREE.BufferGeometry(), wireMaterial(id));
+            m.userData.end = end; m.userData.wireId = id; grp.add(m); wireM[end + '_' + id] = m;
+        }));
+        connA = makeConnector(); connA.visible = false; grp.add(connA);
+        connB = makeConnector(); connB.visible = false; grp.add(connB);
+
+        gloveG  = makeGloveMesh();  gloveG.visible  = false; scene.add(gloveG);
+        cutterG = makeCrimpMesh();  cutterG.visible = false; scene.add(cutterG);
+        stripG  = makeStripMesh();  stripG.visible  = false; scene.add(stripG);
+        crimpG  = makeCrimpMesh();  crimpG.visible  = false; scene.add(crimpG);
+
+        cutPiece = new THREE.Mesh(new THREE.CylinderGeometry(JACK_R, JACK_R, .30, 14),
+            new THREE.MeshStandardMaterial({ color:0x505a66, roughness:.9 }));
+        cutPiece.rotation.z = Math.PI/2; cutPiece.visible = false;
+        cutPiece.position.set(-2.2, Y_BOT + .15, .6); scene.add(cutPiece);
+
+        raycaster = new THREE.Raycaster();
+        planeZ0 = new THREE.Plane(new THREE.Vector3(0,0,1), 0);
+        R = { renderer, scene, camera, grp };
+        setCam(-0.6, 9.5, 0, -0.6, 0, 0);
+        rebuildWires();
+    }
+    function dispose3D() {
+        if (!R) return;
+        try {
+            R.scene.traverse(o => {
+                if (o.geometry) o.geometry.dispose();
+                if (o.material) { const m = Array.isArray(o.material)?o.material:[o.material]; m.forEach(x=>{ if (x.map) x.map.dispose(); x.dispose(); }); }
+            });
+            R.renderer.dispose();
+            if (R.renderer.domElement && R.renderer.domElement.parentNode) R.renderer.domElement.parentNode.removeChild(R.renderer.domElement);
+        } catch(e){}
+        R = null; wireM = {}; jacketM = capTopM = capBotM = null;
+        gloveG = cutterG = stripG = crimpG = testerG = null; testerLED = [];
+        connA = connB = cutPiece = null;
+        for (const k in wireMats) delete wireMats[k];
+        _texCache.clear();
+    }
+    lv.exit = function() { window.removeEventListener('keydown', dbgKey); dispose3D(); };
+
+    const dbgKey = (e) => {
+        if ((e.key === 'd' || e.key === 'D') && (!document.activeElement || document.activeElement.tagName !== 'INPUT')) {
+            lv.debugMode = !lv.debugMode;
+        }
+    };
+    window.addEventListener('keydown', dbgKey);
+
+    function setCam(px,py,pz,lx,ly,lz, dur) {
+        if (!R) return;
+        camFrom = { p: R.camera.position.clone(), l: (R.camLook || new THREE.Vector3(0,0,0)).clone() };
+        camTo = { p: new THREE.Vector3(px,py,pz), l: new THREE.Vector3(lx,ly,lz) };
+        camT0 = performance.now(); camDur = dur == null ? 700 : dur;
+        if (camDur === 0) { R.camera.position.copy(camTo.p); R.camLook = camTo.l.clone(); R.camera.lookAt(R.camLook); camTo = null; }
+    }
+    function camForStep(i) {
+        const S = STEPS[i];
+        if (!S) return { p:[0,-0.6,9.5], l:[0,-0.6,0] };
+        if (S.end === 'AB') return { p:[0,-0.6,9.5], l:[0,-0.6,0] };
+        if (S.end === 'A') {
+            if (i <= 1) return { p:[0,-0.6,9.5], l:[0,-0.6,0] };
+            const mid = tipA - STRIP_LEN * 0.5 + 0.15;
+            return { p:[0, mid, 2.4], l:[0, mid, 0] };
+        }
+        const midB = tipB + STRIP_LEN * 0.5 - 0.15;
+        return { p:[0, midB, 2.4], l:[0, midB, 0] };
+    }
+    function gotoCamForStep(i, dur) {
+        const c = camForStep(i);
+        setCam(c.p[0], c.p[1], c.p[2], c.l[0], c.l[1], c.l[2], dur);
+    }
+
+    function updateJacket() {
+        if (!R) return;
+        const jTop = KAB.ends.A.stripped ? (tipA - exA) : tipA;
+        const jBot = KAB.ends.B.stripped ? (tipB + exB) : tipB;
+        const len = Math.max(.2, jTop - jBot);
+        jacketM.scale.set(1, len, 1);
+        jacketM.position.y = jBot + len/2;
+        capTopM.position.y = jTop;  capTopM.visible = !KAB.ends.A.stripped;
+        capBotM.position.y = jBot;  capBotM.visible = !KAB.ends.B.stripped;
+    }
+    function rebuildWires() {
+        if (!R) return;
+        ['A','B'].forEach(end => {
+            const e = KAB.ends[end];
+            WIRE_IDS.forEach(id => {
+                const mesh = wireM[end + '_' + id];
+                if (!e.stripped) { mesh.visible = false; return; }
+                mesh.visible = true;
+                const idx = WIRE_IDS.indexOf(id);
+                const ang = (idx/8) * Math.PI * 2;
+                const bx = Math.cos(ang) * BUNDLE_R, bz = Math.sin(ang) * BUNDLE_R;
+                const slot = e.slots.indexOf(id), fp = e.fan.indexOf(id);
+                const tx = ((slot>=0 ? slot : fp) - 3.5) * 0.14;
+                let jacketEdge, tip;
+                if (end === 'A') { jacketEdge = tipA - exA; tip = tipA; }
+                else { jacketEdge = tipB + exB; tip = tipB; }
+                const curve = new THREE.CatmullRomCurve3([
+                    new THREE.Vector3(bx, jacketEdge, bz),
+                    new THREE.Vector3(bx*.65 + tx*.35, jacketEdge + (tip-jacketEdge)*.35, bz*.55),
+                    new THREE.Vector3(bx*.25 + tx*.75, jacketEdge + (tip-jacketEdge)*.72, bz*.20),
+                    new THREE.Vector3(tx, tip, 0)
+                ]);
+                mesh.geometry.dispose();
+                mesh.geometry = new THREE.TubeGeometry(curve, 16, WIRE_R, 8, false);
+            });
+        });
+    }
+
+    function ndcFromPointer(p) { return { x: ((p.x-AX)/AW)*2-1, y: -((p.y-AY)/AH)*2+1 }; }
+    function worldYAt(p) {
+        if (!R) return 0;
+        const n = ndcFromPointer(p);
+        raycaster.setFromCamera(n, R.camera);
+        const hit = new THREE.Vector3();
+        if (!raycaster.ray.intersectPlane(planeZ0, hit)) return 0;
+        return hit.y;
+    }
+    function pickWire(p) {
+        if (!R) return null;
+        const n = ndcFromPointer(p);
+        raycaster.setFromCamera(n, R.camera);
+        const end = STEPS[lv.step].end;
+        const list = WIRE_IDS.map(id => wireM[end + '_' + id]).filter(m => m && m.visible);
+        const hits = raycaster.intersectObjects(list, false);
+        return hits.length ? hits[0].object.userData.wireId : null;
+    }
+    function projectY(localY) {
+        if (!R) return AY + AH/2;
+        const v = new THREE.Vector3(0, localY, 0).project(R.camera);
+        return AY + (1 - (v.y + 1)/2) * AH;
+    }
+
+    const andi = (t, ms) => { lv.andi = t; lv.andiUntil = performance.now() + (ms || 4600); };
+    const curStep = () => STEPS[lv.step];
+    const fast = () => !!curStep().fast;
+    const dur = (base) => fast() ? Math.round(base * .55) : base;
+
+    function advanceStep() {
+        if (lv.step >= STEPS.length - 1) return;
+        lv.step++; lv.tool = null; lv.anim = null; lv.wireSel = null;
+        const S = STEPS[lv.step];
+        if (S.end === 'B' && KAB.flip < .5) {
+            KAB.flip = 1;
+            gotoCamForStep(lv.step, 900);
+            andi('Sekarang pindah ke ujung B. Kupas, susun, ratakan, konektor, crimp — sama seperti ujung A tapi lebih cepat.');
+        } else if (S.end === 'AB' && KAB.flip > .5) {
+            gotoCamForStep(lv.step, 900);
+            andi('Kedua ujung siap. Klik Tester di panel kanan, lalu klik area kerja untuk mulai uji.');
+        } else {
+            gotoCamForStep(lv.step, 700);
+            const msg = {
+                'glove':'Klik Sarung Tangan di panel kiri.',
+                'cut':'Seret Pemotong Kabel melintang di garis 150 cm.',
+                'stripA':'Seret Pengupas Kabel ke bawah ±1,2 cm dari ujung.',
+                'orderA':'Klik kabel berwarna, lalu klik slot pin 1–8 sesuai T568B.',
+                'trimA':'Seret Pemotong Kabel di antara dua garis ratakan.',
+                'connA':'Klik Konektor RJ-45, lalu seret dari panel ke ujung kabel.',
+                'crimpA':'Klik Tang Crimping, lalu tahan 0,3 detik pada konektor.',
+                'stripB':'Ujung B: seret Pengupas Kabel seperti di ujung A.',
+                'orderB':'Susun T568B di ujung B (pin 1 Putih-Oranye).',
+                'trimB':'Ratakan ujung B seperti tadi.',
+                'connB':'Pasang konektor RJ-45 di ujung B.',
+                'crimpB':'Crimp ujung B.',
+                'tester':'Kedua ujung ke tester. Amati 8 LED 1→8; merah berarti masalah.'
+            }[S.id] || 'Lanjut.';
+            andi(msg);
+        }
+        lv.wireDirty = true;
+    }
+
+    function actGlove() {
+        if (lv.step !== 0 || KAB.glove) return;
+        KAB.glove = true;
+        gloveG.visible = true; gloveG.scale.setScalar(1);
+        lv.anim = { type:'glove', t0:performance.now(), dur:1200 };
+        SND.klik();
+        say('Sarung tangan dipakai. Tangan terlindung dari serpihan kawat tajam.', 'ok');
+        andi('Sarung tangan melindungi tangan dan menjaga kabel tetap bersih.');
+        setTimeout(()=>{ if (lv.step===0) advanceStep(); }, 1260);
+    }
+
+    function doCut(localY) {
+        let cm = yToCm(localY); if (Math.abs(cm - TARGET_CM) <= SNAP_CM) cm = TARGET_CM;
+        if (Math.abs(cm - TARGET_CM) <= TOL_CM) {
+            KAB.lengthCm = Math.round(cm); KAB.usedCm += KAB.lengthCm; KAB.cut = true;
+            tipA = cmToY(cm);
+            lv.anim = { type:'cut', t0:performance.now(), dur:dur(700), from:Y_TOP0, to:tipA };
+            cutPiece.visible = true; SND.potong();
+            say('Potongan rapi, panjang ' + KAB.lengthCm + ' cm.', 'ok');
+            andi('150 cm sudah pas — tidak boros dan cukup untuk PC ke switch.');
+            lv.wireDirty = true;
+            setTimeout(()=>{ if (lv.step===1) advanceStep(); }, 900);
+        } else if (cm > TARGET_CM) {
+            KAB.usedCm += Math.round(cm);
+            lv.penalize(8, 'Terlalu panjang (' + Math.round(cm) + ' cm) — sisa kabel terbuang.');
+            andi('Kepanjangan. Sisa yang terbuang itu pemborosan bahan.');
+            setTimeout(()=>{ lv.step=1; lv.tool=null; tipA=Y_TOP0; KAB.cut=false; lv.anim=null; lv.wireDirty=true; }, 1300);
+        } else {
+            KAB.usedCm += Math.round(cm);
+            lv.penalize(10, 'Terlalu pendek (' + Math.round(cm) + ' cm) — kabel tidak cukup.');
+            andi('Terlalu pendek. Ambil dari gulungan lagi.');
+            setTimeout(()=>{ lv.step=1; lv.tool=null; tipA=Y_TOP0; KAB.cut=false; lv.anim=null; lv.wireDirty=true; }, 1300);
+        }
+    }
+
+    function doStrip(end, lenWorld) {
+        const e = KAB.ends[end];
+        if (lenWorld < STRIP_LEN * .55) {
+            lv.penalize(6, 'Kupasan terlalu pendek — jaket tidak lepas dari konduktor.');
+            andi('Terlalu pendek. Kupas sekitar 1,2–1,5 cm supaya jaket lepas.');
+            return;
+        }
+        if (lenWorld > STRIP_LEN * 1.75) {
+            e.stripLen = STRIP_LEN * 1.4; e.stripped = true;
+            lv.penalize(8, 'Terlalu dalam — konduktor tergores.');
+            andi('Pisau masuk terlalu dalam sampai menyayat tembaga. Kabel seperti ini gagal uji.');
+        } else {
+            e.stripLen = STRIP_LEN; e.stripped = true;
+            SND.kupas();
+            say('Jaket terbuka rapi. Delapan konduktor muncul dengan urutan acak.', 'ok');
+            andi('Bagus, jaketnya lepas bersih tanpa melukai tembaga di dalamnya.');
+        }
+        lv.wireDirty = true;
+        setTimeout(()=>{ if (curStep().id.startsWith('strip')) advanceStep(); }, dur(860));
+    }
+
+    function placeWire(slot) {
+        const end = curStep().end;
+        const e = KAB.ends[end];
+        const id = lv.wireSel;
+        if (!id) { say('Klik dulu salah satu kabel berwarna di area kerja.', 'info'); return; }
+        const old = e.slots.indexOf(id);
+        if (old >= 0) e.slots[old] = null;
+        if (e.slots[slot]) { const other = e.slots[slot]; e.slots[slot] = id; if (old>=0) e.slots[old] = other; }
+        else e.slots[slot] = id;
+        lv.wireSel = null; lv.wireDirty = true;
+        SND.klik();
+        if (e.slots.every(Boolean)) setTimeout(()=>checkOrder(end), 240);
+    }
+    function checkOrder(end) {
+        const e = KAB.ends[end];
+        if (!e.slots.every(Boolean)) { say('Masih ada slot pin yang kosong.', 'info'); return; }
+        const wrong = [];
+        e.slots.forEach((id, i) => { if (id !== T568B[i]) wrong.push(i+1); });
+        if (!wrong.length) {
+            SND.benar();
+            say('Urutan T568B ujung ' + end + ' benar!', 'ok');
+            andi('Sempurna! Urutan warnanya sudah persis T568B dari pin 1 sampai pin 8.');
+            lv.score = Math.min(100, lv.score + 5);
+            setTimeout(()=>{ if (curStep().id.startsWith('order')) advanceStep(); }, dur(1100));
+        } else {
+            lv.penalize(5, 'Urutan ujung ' + end + ' belum benar.');
+            andi('Belum tepat di pin: ' + wrong.join(', ') + '. Ingat: PO-O-PH-B-PB-H-PC-C.');
+        }
+    }
+
+    function doTrim(end, localY) {
+        const e = KAB.ends[end];
+        if (!e.slots.every(Boolean)) { say('Susun warna dulu sebelum meratakan.', 'info'); return; }
+        const edge = end === 'A' ? (tipA - exA) : (tipB + exB);
+        const dist = Math.abs(localY - edge);
+        if (dist < TRIM_MIN * .5) { lv.penalize(4, 'Potongan terlalu dekat jaket — jaket bisa ikut terpotong.'); andi('Jangan mepet ke jaket. Sisakan sekitar 1,2–1,5 cm.'); return; }
+        if (dist > TRIM_MAX * 2) { lv.penalize(6, 'Ujung terlalu panjang — tembaga tidak akan mencapai kontak RJ-45.'); andi('Terlalu panjang. Tembaga tidak akan menyentuh kontak konektor.'); return; }
+        const want = clamp(dist, TRIM_MIN, TRIM_MAX);
+        if (end === 'A') { tipA = edge + want; exA = want; } else { tipB = edge - want; exB = want; }
+        e.trimmed = true;
+        SND.potong();
+        say('Ujung kabel sudah rata.', 'ok');
+        andi('Bagus. Ujung rata seperti ini yang bikin tembaga pas menyentuh kontak.');
+        lv.wireDirty = true;
+        setTimeout(()=>{ if (curStep().id.startsWith('trim')) advanceStep(); }, dur(700));
+    }
+
+    function doConnector(end) {
+        const e = KAB.ends[end];
+        if (!e.trimmed) { say('Ratakan dulu ujung kabel sebelum memasang konektor.', 'info'); return; }
+        const edge = end === 'A' ? (tipA - exA) : (tipB + exB);
+        const tip = end === 'A' ? tipA : tipB;
+        const stripToJacket = Math.abs(tip - edge);
+        const jacketInside = e.trimmed;
+        e.jacketIn = jacketInside;
+        const G = end === 'A' ? connA : connB;
+        G.visible = true;
+        G.position.set(0, tip + (end === 'A' ? 0.6 : -0.6), 0.14);
+        G.rotation.set(0, 0, end === 'A' ? 0 : Math.PI);
+        const targetY = end === 'A' ? (tip - 0.15) : (tip + 0.15);
+        lv.anim = { type:'conn', t0:performance.now(), dur:dur(600), end, from:G.position.y, to:targetY };
+        SND.klik();
+        if (jacketInside) {
+            say('Konektor masuk. Jaket ikut masuk ke dalam konektor.', 'ok');
+            andi('Jaket ikut masuk — nanti akan terjepit crimp sehingga sambungan kuat.');
+            e.conn = 'inserted';
+            KAB.rj45Used++;
+            setTimeout(()=>{ if (curStep().id.startsWith('conn')) advanceStep(); }, dur(720));
+        } else {
+            e.conn = 'none'; e.trimmed = false;
+            KAB.rj45Used++;
+            lv.penalize(8, 'Tembaga tidak mencapai ujung konektor / jaket tidak masuk — konektor dibuang (RJ45 +1).');
+            andi('Konektornya tidak duduk sempurna. Buang, ratakan ulang, lalu pasang konektor baru.');
+            setTimeout(()=>{
+                G.visible = false;
+                const target = end === 'A' ? 'trimA' : 'trimB';
+                while (STEPS[lv.step].id !== target && lv.step > 0) lv.step--;
+                lv.tool = null; lv.anim = null; lv.wireDirty = true;
+            }, 1200);
+        }
+    }
+
+    function doCrimp(end) {
+        const e = KAB.ends[end];
+        if (e.conn !== 'inserted') { say('Pasang konektor dulu sebelum crimp.', 'info'); return; }
+        e.crimped = true;
+        lv.anim = { type:'shake', t0:performance.now(), dur:520, end };
+        SND.crimp();
+        say('Crimp selesai. Kontak RJ-45 sudah menembus tembaga.', 'ok');
+        andi('Kedengar bunyi klik. Kontak emas sudah menembus konduktor — sambungan terkunci.');
+        setTimeout(()=>{ if (curStep().id.startsWith('crimp')) advanceStep(); }, dur(720));
+    }
+
+    function doTest() {
+        KAB.test = { t0:performance.now(), phase:'run' };
+        SND.benar();
+        say('LED menyala berurutan 1→8 di kedua ujung…', 'info');
+        andi('Amati 8 LED di tester. Hijau berurutan berarti OK.');
+        setTimeout(() => { if (KAB.test && KAB.test.phase === 'run') evaluateTest(performance.now()); }, 3200);
+    }
+    function evaluateTest(now) {
+        const bad = [];
+        ['A','B'].forEach(end => {
+            const e = KAB.ends[end];
+            if (!e.crimped) bad.push(end + ': belum crimp');
+            else if (e.slots.some((id, i) => id !== T568B[i])) bad.push(end + ': urutan T568B salah');
+            else if (!e.jacketIn) bad.push(end + ': jaket tidak masuk');
+        });
+        lv.testBad = bad;
+        if (!bad.length) {
+            KAB.test.phase = 'ok'; KAB.test.okAt = now;
+            say('Semua LED hijau. Kabel lulus uji!', 'ok');
+            andi('Kabel lulus uji tester. Kedua ujung lolos, siap dipakai ke PC dan switch.');
+            lv.score = Math.min(100, lv.score + 8);
+            setTimeout(()=>{ lv.phase = 'deploy'; lv.deployT0 = performance.now(); lv.anim = null; }, 1500);
+        } else {
+            KAB.test.phase = 'fail';
+            lv.penalize(10, 'Gagal uji — ' + bad.join(' | '));
+            andi('Ada masalah: ' + bad.join(', ') + '. Perbaiki ujungnya, potong konektornya, ulangi.');
+            KAB.rj45Used += 1;
+            setTimeout(()=>{
+                const first = bad[0].startsWith('A') ? 'A' : 'B';
+                const e = KAB.ends[first];
+                e.conn = 'none'; e.crimped = false; e.jacketIn = false; e.trimmed = false;
+                (first === 'A' ? connA : connB).visible = false;
+                KAB.flip = (first === 'B') ? 1 : 0;
+                const target = first === 'A' ? 'trimA' : 'trimB';
+                while (STEPS[lv.step].id !== target && lv.step > 0) lv.step--;
+                lv.tool = null; lv.anim = null; KAB.test = null; lv.wireDirty = true;
+            }, 1600);
+        }
+    }
+
+    function drawLoading(now) {
+        bg(true); hud(lv);
+        const t = (now - lv.loadT0) / 1000;
+        txt('Memuat adegan 3D…', W/2, H/2 - 20, { s:26, f:FONT_H, a:'center', c:C.acc, w:600 });
+        const bw = 320, bx = W/2 - bw/2, by = H/2 + 10;
+        rr(bx, by, bw, 8, 4); ctx.fillStyle = 'rgba(6,14,26,.9)'; ctx.fill();
+        const p = (t % 1.6) / 1.6; rr(bx, by, bw*p, 8, 4); ctx.fillStyle = C.acc; ctx.fill();
+        txt('Menyiapkan kabel, konektor, dan panel alat…', W/2, H/2 + 48, { s:13, a:'center', c:C.mute });
+    }
+    function drawLoadError() {
+        bg(false); hud(lv);
+        const x = 180, y = 150, w = 600, h = 300;
+        rr(x, y, w, h, 18); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.bad; ctx.lineWidth = 2; ctx.stroke();
+        txt('Adegan 3D tidak bisa dimuat', x+w/2, y+54, { s:26, f:FONT_H, a:'center', c:C.bad, w:600 });
+        para('Kemungkinan perangkat ini offline atau WebGL tidak aktif. Level 1, 3, 4, 5 tetap bisa dimainkan tanpa internet.', x+40, y+96, w-80, 22, { s:14, c:C.text });
+        btn(x+40, y+h-74, 230, 50, 'Coba lagi', ()=>{ lv.loadErr = null; lv.phase='load'; lv.loadT0 = performance.now(); tryLoad(); }, { color:C.ok, s:17 });
+        btn(x+300, y+h-74, 260, 50, 'Kembali ke menu', ()=>go(levelsScene), { color:'#334155', tc:C.text, s:17 });
+    }
+    function toolStateOf(t) {
+        const used = TOOL_STEPS[t.id] || [];
+        if (used.includes(lv.step)) return 'next';
+        if (used.some(s => s < lv.step)) return 'done';
+        return 'lock';
+    }
+    function drawToolPanel(P, list, title) {
+        rr(P.x, P.y, P.w, P.h, 14); ctx.fillStyle = 'rgba(12,22,36,.96)'; ctx.fill();
+        ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
+        txt(title, P.x+P.w/2, P.y+26, { s:14, a:'center', c:C.acc, w:800 });
+        list.forEach((t, i) => {
+            const bx = P.x+8, by = P.y+40 + i*92, bw = P.w-16, bh = 84;
+            const st = toolStateOf(t);
+            const hov = over(bx, by, bw, bh) && st !== 'lock';
+            if (hov) hoverBtn = true;
+            rr(bx, by, bw, bh, 12);
+            ctx.fillStyle = st==='lock' ? 'rgba(18,28,42,.9)' : (lv.tool===t.id ? 'rgba(29,79,116,.95)' : (hov ? 'rgba(42,69,101,.95)' : 'rgba(24,42,64,.95)'));
+            ctx.fill();
+            ctx.lineWidth = lv.tool===t.id ? 3 : 2;
+            ctx.strokeStyle = lv.tool===t.id ? C.acc : (st==='lock' ? '#1c2a3c' : C.line);
+            ctx.stroke();
+            ctx.save(); ctx.globalAlpha = st==='lock' ? .38 : 1;
+            icon(t.id, bx+44, by+38, .62); ctx.restore();
+            para(t.name, bx+78, by+34, bw-86, 16, { s:12.5, w:800, c: st==='lock'? '#5f7389' : C.text });
+            const dot = { x:bx+bw-16, y:by+16 };
+            if (st==='next') { ctx.beginPath(); ctx.arc(dot.x, dot.y, 7, 0, 6.3); ctx.fillStyle = C.bad; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke(); }
+            else if (st==='done') { ctx.beginPath(); ctx.arc(dot.x, dot.y, 7, 0, 6.3); ctx.fillStyle = C.ok; ctx.fill(); tickIcon(dot.x, dot.y, 9, '#04160f'); }
+            if (st==='lock') lock(bx+bw-16, by+46, .55);
+            hit(bx, by, bw, bh, () => {
+                if (st === 'lock') { lv.penalize(2, 'Alat "'+t.name+'" belum waktunya dipakai.'); andi('Belum waktunya. Ikuti urutan langkah, lihat titik merah.'); return; }
+                if (t.id === 'sarung_tangan') { actGlove(); return; }
+                lv.tool = (lv.tool === t.id) ? null : t.id;
+                SND.klik();
+            });
+        });
+    }
+    function drawCableStatus() {
+        const x = PL.x+8, y = PL.y+314, w = PL.w-16, h = 122;
+        rr(x, y, w, h, 12); ctx.fillStyle = 'rgba(10,19,32,.96)'; ctx.fill();
+        ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
+        txt('STATUS KABEL', x+w/2, y+20, { s:11, a:'center', c:C.acc, w:800 });
+        [['A', y+46], ['B', y+84]].forEach(([k, yy]) => {
+            const e = KAB.ends[k];
+            const done = e.crimped;
+            ctx.beginPath(); ctx.arc(x+18, yy-4, 7, 0, 6.3);
+            ctx.fillStyle = done ? C.ok : (e.stripped ? C.warn : '#3a4d64'); ctx.fill();
+            txt('Ujung ' + k, x+32, yy, { s:12.5, w:800 });
+            const st = done ? 'siap' : e.conn === 'inserted' ? 'konektor' : e.stripped ? 'terkupas' : 'belum';
+            txt(st, x+w-10, yy, { s:11.5, a:'right', c: done ? C.ok : C.mute });
+        });
+        txt('Terpakai ' + KAB.usedCm + ' cm', x+w/2, y+h-12, { s:11, a:'center', c:C.mute });
+    }
+    function drawTopStrip() {
+        ctx.fillStyle = '#0a1524'; ctx.fillRect(0, 54, W, 42);
+        ctx.fillStyle = C.line; ctx.fillRect(0, 95, W, 1);
+        btn(12, 59, 140, 32, 'Langkah-langkah', ()=>{ lv.showSteps = !lv.showSteps; lv.showHelp = false; }, { color: lv.showSteps? C.acc : '#334155', tc: lv.showSteps?'#06131f':C.text, s:13 });
+        btn(160, 59, 140, 32, 'Bantuan Kabel', ()=>{
+            const now = performance.now();
+            if (lv.helpFree > 0) { lv.helpFree--; KAB.helpUsed++; lv.showHelp = true; say('Bantuan gratis dipakai. Tabel T568B terbuka.', 'info'); }
+            else if (now > lv.helpUntil) { lv.penalize(5, 'Membuka Bantuan Kabel lagi.'); KAB.helpUsed++; lv.showHelp = true; lv.helpUntil = now + 1000; }
+        }, { color: lv.showHelp? C.acc : '#334155', tc: lv.showHelp?'#06131f':C.text, s:13 });
+        btn(308, 59, 130, 32, 'Mode mudah: ' + (lv.modeMudah ? 'ON' : 'OFF'), ()=>{ lv.modeMudah = !lv.modeMudah; save.l2.mudah = lv.modeMudah; persist(); }, { color: lv.modeMudah? C.ok : '#334155', tc: lv.modeMudah?'#04160f':C.text, s:12 });
+        const nm = (nameEl.value || '(tanpa nama)').trim() || '(tanpa nama)';
+        txt('Nama: ' + (nm.length > 14 ? nm.slice(0,13)+'…' : nm), 454, 79, { s:12, c:C.mute, w:700 });
+        txt('Terpakai: ' + KAB.usedCm + ' cm', 812, 79, { s:12.5, a:'right', c:C.text, w:800 });
+        txt('RJ45: ' + KAB.rj45Used, 948, 79, { s:12.5, a:'right', c:C.text, w:800 });
+    }
+    function drawMissionBanner() {
+        rr(AX+8, AY+6, AW-16, 26, 8);
+        ctx.fillStyle = 'rgba(8,17,30,.86)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(56,189,248,.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+        txt('Misi: Buat kabel LAN straight-through untuk menghubungkan PC ke switch.', AX+AW/2, AY+24, { s:12.5, a:'center', c:C.acc, w:700 });
+    }
+    function drawPinBox() {
+        const S = curStep();
+        if (!S || (S.id !== 'orderA' && S.id !== 'orderB')) return;
+        const end = S.end;
+        const e = KAB.ends[end];
+        if (!e.stripped) return;
+        const B = PIN_BOX;
+        rr(B.x, B.y, B.w, B.h, 12); ctx.fillStyle = 'rgba(8,17,30,.92)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(212,167,44,.55)'; ctx.lineWidth = 2; ctx.stroke();
+        txt('RJ45  PIN 1–8  (ujung ' + end + ')', B.x+12, B.y+18, { s:11.5, c:C.warn, w:800 });
+        const gap = 6, pad = 12;
+        const sw = (B.w - pad*2 - gap*7) / 8, sh = 52, sy = B.y + 26;
+        for (let i=0;i<8;i++) {
+            const sx = B.x + pad + i*(sw+gap);
+            const id = e.slots[i];
+            rr(sx, sy, sw, sh, 6);
+            ctx.fillStyle = id ? 'rgba(20,44,66,.95)' : 'rgba(6,14,26,.85)'; ctx.fill();
+            ctx.lineWidth = 1.5; ctx.strokeStyle = id ? 'rgba(120,180,230,.5)' : 'rgba(70,105,145,.6)'; ctx.stroke();
+            txt(i+1, sx+sw/2, sy+12, { s:10.5, a:'center', c:C.mute, w:800 });
+            if (id) {
+                drawWire(sx+sw/2-8, sy+15, 16, 24, id, false);
+                const nm = WC[id].n;
+                txt(nm.length>9 ? nm.slice(0,8)+'…' : nm, sx+sw/2, sy+48, { s:8.5, a:'center', c:'#cfe0f0', w:700 });
+            } else txt('kosong', sx+sw/2, sy+38, { s:10, a:'center', c:'rgba(90,120,155,.8)', w:700 });
+            hit(sx, sy, sw, sh, ()=>{ placeWire(i); });
+        }
+    }
+    function drawStepsPanel() {
+        if (!lv.showSteps) return;
+        const x = 140, y = 60, w = 680, h = 480;
+        rr(x, y, w, h, 16); ctx.fillStyle = 'rgba(10,20,34,.98)'; ctx.fill();
+        ctx.strokeStyle = C.acc; ctx.lineWidth = 2; ctx.stroke();
+        txt('Langkah-langkah', x+w/2, y+34, { s:20, f:FONT_H, a:'center', c:C.acc, w:600 });
+        STEPS.forEach((s, i) => {
+            const yy = y + 62 + i*28;
+            const done = i < lv.step, cur = i === lv.step;
+            ctx.beginPath(); ctx.arc(x+44, yy, 10, 0, 6.3);
+            ctx.fillStyle = done ? C.ok : cur ? C.bad : '#22344a'; ctx.fill();
+            if (done) tickIcon(x+44, yy, 11, '#04160f');
+            else txt(i+1, x+44, yy+4, { s:11, a:'center', c:cur?'#fff':'#5f7389', w:800 });
+            txt(s.label, x+66, yy+4, { s:12.5, w: cur?800:600, c: done ? C.ok : cur ? C.text : C.mute });
+        });
+        hit(x+w-100, y+h-34, 84, 28, ()=> lv.showSteps = false);
+        txt('Tutup', x+w-58, y+h-16, { s:12, a:'center', c:C.mute });
+    }
+    function drawHelpPanel() {
+        if (!lv.showHelp) return;
+        const x = 610, y = 150, w = 300, h = 300;
+        rr(x, y, w, h, 14); ctx.fillStyle = 'rgba(12,22,36,.98)'; ctx.fill();
+        ctx.strokeStyle = C.warn; ctx.lineWidth = 2; ctx.stroke();
+        txt('T568B', x+w/2, y+30, { s:20, f:FONT_H, a:'center', c:C.warn, w:600 });
+        T568B.forEach((id, i) => {
+            const yy = y + 52 + i*26;
+            txt('Pin ' + (i+1), x+16, yy+12, { s:11.5, c:C.mute });
+            drawWire(x+60, yy, 46, 16, id, true);
+            txt(WC[id].n, x+114, yy+12, { s:11.5, w:700 });
+        });
+        btn(x+16, y+h-40, w-32, 28, 'Tutup', ()=> lv.showHelp = false, { color:'#334155', tc:C.text, s:12 });
+    }
+    function drawAndiBar(now) {
+        rr(BAR.x, BAR.y, BAR.w, BAR.h, 12); ctx.fillStyle = 'rgba(10,20,34,.96)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(56,189,248,.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+        drawAndiFace(BAR.x+32, BAR.y + BAR.h/2, 15, lv.score < 70 ? 'sad' : 'happy', now/1000);
+        const t = now < lv.andiUntil ? lv.andi : (curStep() ? curStep().label : '');
+        para(t, BAR.x+58, BAR.y+20, BAR.w-76, 17, { s:12.5, c:C.text, w:700 });
+    }
+    function drawTestPanel(now) {
+        if (curStep().id !== 'tester' || !KAB.test) return;
+        const x = AX + 40, y = AY + 20, w = AW - 80, h = 90;
+        rr(x, y, w, h, 12); ctx.fillStyle = 'rgba(6,14,26,.92)'; ctx.fill();
+        ctx.strokeStyle = KAB.test.phase === 'ok' ? C.ok : KAB.test.phase === 'fail' ? C.bad : C.acc;
+        ctx.lineWidth = 2; ctx.stroke();
+        txt('LAN Tester  ·  1 → 8', x+w/2, y+22, { s:12, a:'center', c:C.acc, w:800 });
+        const elapsed = (now - KAB.test.t0) / 1000;
+        for (let i=0;i<8;i++) {
+            const cx = x + 40 + i*((w-80)/8), cy = y + 58;
+            const on = elapsed > (i+1) * 0.35;
+            const good = on && KAB.test.phase !== 'fail';
+            ctx.beginPath(); ctx.arc(cx, cy, 11, 0, 6.3);
+            ctx.fillStyle = on ? (good ? C.ok : C.bad) : '#1d2a3d'; ctx.fill();
+            if (on) { ctx.save(); ctx.shadowColor = good ? C.ok : C.bad; ctx.shadowBlur = 14; ctx.fill(); ctx.restore(); }
+            txt(i+1, cx, cy+4, { s:10, a:'center', c: on?'#04160f':'#5f7389', w:800 });
+        }
+        if (KAB.test.phase === 'fail' && lv.testBad.length) txt('Gagal: ' + lv.testBad.join(' | '), x+w/2, y+h-6, { s:11.5, a:'center', c:C.bad, w:800 });
+        if (KAB.test.phase === 'ok') txt('LED hijau 1→8. Kabel siap dipakai.', x+w/2, y+h-6, { s:12, a:'center', c:C.ok, w:800 });
+    }
+    function drawDeploy(now) {
+        deskBG(); hud(lv);
+        const t = (now - lv.deployT0) / 1000;
+        rr(W/2-260, 70, 520, 40, 12); ctx.fillStyle = 'rgba(8,17,30,.9)'; ctx.fill();
+        ctx.strokeStyle = C.ok; ctx.lineWidth = 2; ctx.stroke();
+        txt('Kabel siap dipakai! Menghubungkan PC → switch…', W/2, 96, { s:16, a:'center', c:C.ok, w:800 });
+        const pcX = 210, pcY = 300;
+        rr(pcX-90, pcY-80, 180, 130, 10); ctx.fillStyle = '#1e293b'; ctx.fill();
+        ctx.strokeStyle = '#475569'; ctx.lineWidth = 2; ctx.stroke();
+        rr(pcX-80, pcY-70, 160, 100, 6); ctx.fillStyle = '#0f172a'; ctx.fill();
+        txt('PC', pcX, pcY-14, { s:36, a:'center', c:'#38bdf8', f:FONT_H, w:600 });
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(pcX-20, pcY+50, 40, 20);
+        ctx.fillRect(pcX-60, pcY+70, 120, 8);
+        const swX = 750, swY = 300;
+        rr(swX-110, swY-26, 220, 52, 6); ctx.fillStyle = '#1e293b'; ctx.fill();
+        ctx.strokeStyle = '#475569'; ctx.lineWidth = 2; ctx.stroke();
+        for (let k=0;k<12;k++){ ctx.fillStyle = '#0a1220'; ctx.fillRect(swX-96 + k*16, swY-8, 11, 16); }
+        txt('SWITCH', swX, swY+48, { s:14, a:'center', c:C.acc, w:800 });
+        const progress = Math.min(1, t / 2.2);
+        ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+        ctx.beginPath();
+        const N = 40;
+        for (let i=0;i<=N;i++) {
+            const p = i/N;
+            if (p > progress) break;
+            const x = pcX + 90 + (swX - 110 - pcX - 90) * p;
+            const y = pcY + 20 + Math.sin(p * Math.PI) * 70;
+            if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.2)'; ctx.stroke();
+        if (progress >= 1) {
+            const pulse = 0.5 + 0.5 * Math.sin(t * 5);
+            ctx.beginPath(); ctx.arc(pcX+90, pcY+20, 9, 0, 6.3); ctx.fillStyle = '#34d399'; ctx.fill();
+            ctx.beginPath(); ctx.arc(swX-110, pcY+20, 9, 0, 6.3); ctx.fillStyle = '#34d399'; ctx.fill();
+            ctx.save(); ctx.globalAlpha = 0.4 * pulse;
+            ctx.beginPath(); ctx.arc(pcX+90, pcY+20, 22, 0, 6.3); ctx.fillStyle = '#34d399'; ctx.fill();
+            ctx.beginPath(); ctx.arc(swX-110, pcY+20, 22, 0, 6.3); ctx.fillStyle = '#34d399'; ctx.fill();
+            ctx.restore();
+            txt('● LINK', pcX+90, pcY+50, { s:12, a:'center', c:C.ok, w:800 });
+            txt('● LINK', swX-110, pcY+50, { s:12, a:'center', c:C.ok, w:800 });
+        }
+        if (progress >= 1 && t > 2.8) {
+            rr(W/2-280, 470, 560, 50, 10); ctx.fillStyle = 'rgba(8,17,30,.94)'; ctx.fill();
+            ctx.strokeStyle = C.acc; ctx.lineWidth = 2; ctx.stroke();
+            para('Kabel straight-through untuk perangkat berbeda. Untuk perangkat sejenis (PC ke PC), kita butuh kabel crossover — itu di Level 3.', W/2, 490, 540, 18, { s:12.5, a:'center', c:C.text, w:600 });
+            btn(W/2-100, 534, 200, 44, 'Lanjut ke Kuis ▸', () => { lv.phase = 'quiz'; }, { s:15, color:C.ok });
+        }
+    }
+
+    function drawDebugOverlay() {
+        if (!lv.debugMode || !R) return;
+        const visible = [];
+        R.scene.traverse(o => { if (o.isMesh && o.visible) visible.push(o); });
+        const bx = AX + 6, by = AY + AH - 130, bw = 300, bh = 124;
+        rr(bx, by, bw, bh, 8); ctx.fillStyle = 'rgba(0,0,0,.85)'; ctx.fill();
+        ctx.strokeStyle = '#34d399'; ctx.lineWidth = 1.5; ctx.stroke();
+        txt('DEBUG (D)  ·  mesh visible: ' + visible.length, bx+8, by+18, { s:11, c:'#34d399', w:800 });
+        let y = by + 34;
+        R.scene.children.forEach(c => {
+            if (!c.visible) return;
+            const nm = c.name || c.type + (c.userData && c.userData.wireId ? ' [' + c.userData.end + '_' + c.userData.wireId + ']' : '');
+            txt('• ' + nm, bx+10, y, { s:10, c:'#eaf2fb', w:600 }); y += 13;
+            if (y > by + bh - 6) return;
+        });
+    }
+
+    function render3D(now) {
+        if (!R) return;
+        if (camTo) {
+            const p = camDur <= 0 ? 1 : Math.min(1, (now - camT0) / camDur);
+            const e = p < .5 ? 2*p*p : 1 - Math.pow(-2*p + 2, 2)/2;
+            R.camera.position.lerpVectors(camFrom.p, camTo.p, e);
+            if (!R.camLook) R.camLook = new THREE.Vector3();
+            R.camLook.lerpVectors(camFrom.l, camTo.l, e);
+            R.camera.lookAt(R.camLook);
+            if (p >= 1) camTo = null;
+        }
+
+        if (lv.anim && lv.anim.type === 'cut') {
+            const p = Math.min(1, (now - lv.anim.t0) / lv.anim.dur);
+            const e = 1 - Math.pow(1-p, 3);
+            tipA = lv.anim.from + (lv.anim.to - lv.anim.from) * e;
+            if (p >= 1) lv.anim = null;
+            lv.wireDirty = true;
+        }
+        if (lv.anim && lv.anim.type === 'glove') {
+            const p = Math.min(1, (now - lv.anim.t0) / lv.anim.dur);
+            const x = p < 0.35 ? -2 + (p/0.35) * 1.6
+                    : p < 0.55 ? -0.4
+                    :            -0.4 + ((p-0.55)/0.45) * 2.2;
+            gloveG.position.set(x, tipA - 0.4, 0.55);
+            gloveG.rotation.y = Math.sin(now/300) * 0.25;
+            if (p >= 1) {
+                gloveG.visible = false;
+                lv.anim = null;
+            }
+        }
+        if (lv.anim && lv.anim.type === 'conn') {
+            const p = Math.min(1, (now - lv.anim.t0) / lv.anim.dur);
+            const e = 1 - Math.pow(1-p, 3);
+            const G = lv.anim.end === 'A' ? connA : connB;
+            G.position.y = lv.anim.from + (lv.anim.to - lv.anim.from) * e;
+            if (p >= 1) lv.anim = null;
+        }
+        if (lv.anim && lv.anim.type === 'shake') {
+            const p = (now - lv.anim.t0) / lv.anim.dur;
+            const a = p >= 1 ? 0 : (1 - p) * .028;
+            R.grp.position.x = (Math.random() - .5) * a;
+            if (p >= 1) { R.grp.position.x = 0; lv.anim = null; }
+        }
+
+        if (lv.wireDirty) { updateJacket(); rebuildWires(); lv.wireDirty = false; }
+        for (const k in wireMats) { wireMats[k].emissive.setHex(lv.wireSel === k ? 0x3b82f6 : 0); wireMats[k].emissiveIntensity = .55; }
+
+        const inView = mouse.x >= AX && mouse.x <= AX + AW && mouse.y >= AY && mouse.y <= AY + AH;
+        const dragMode = lv.drag ? lv.drag.mode : null;
+        const activeCut   = dragMode === 'cut'   || dragMode === 'trim';
+        const activeStrip = dragMode === 'strip';
+        const activeCrimp = dragMode === 'crimp' || (lv.anim && lv.anim.type === 'shake');
+
+        if (cutterG) cutterG.visible = activeCut && inView;
+        if (stripG)  stripG.visible  = activeStrip && inView;
+        if (crimpG)  crimpG.visible  = activeCrimp;
+        if (testerG) testerG.visible = false;
+
+        if (cutterG && cutterG.visible) {
+            const w = worldYAt(mouse);
+            cutterG.position.set(0, isFinite(w)? w : 0, 0.42);
+            cutterG.rotation.z = Math.sin(now/180)*.05;
+        }
+        if (stripG && stripG.visible)  {
+            const w = worldYAt(mouse);
+            stripG.position.set(0, (isFinite(w)? w : 0), 0.42);
+        }
+        if (crimpG && crimpG.visible) {
+            const S = curStep();
+            const tip = S.end === 'A' ? tipA : tipB;
+            crimpG.position.set(0, tip + (S.end==='A' ? -0.15 : 0.15), 0.44);
+        }
+        if (connA && KAB.ends.A.conn === 'inserted') connA.position.set(0, tipA - 0.15, 0.14);
+        if (connB && KAB.ends.B.conn === 'inserted') connB.position.set(0, tipB + 0.15, 0.14);
+
+        R.renderer.render(R.scene, R.camera);
+        ctx.drawImage(R.renderer.domElement, AX, AY, AW, AH);
+    }
+
+    function drawWorkArea(now) {
+        rr(AX-2, AY-2, AW+4, AH+4, 12); ctx.fillStyle = '#0a1626'; ctx.fill();
+        render3D(now);
+        ctx.save(); rr(AX, AY, AW, AH, 10); ctx.clip();
+        const S = curStep();
+        if (S.id === 'cut') {
+            const rx = AX + 24;
+            ctx.strokeStyle = 'rgba(157,178,200,.28)'; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(rx, projectY(Y_BOT)); ctx.lineTo(rx, projectY(Y_TOP0)); ctx.stroke();
+            for (let cm = 0; cm <= CM_TOTAL; cm += 25) {
+                const y = projectY(cmToY(cm));
+                ctx.beginPath(); ctx.moveTo(rx, y); ctx.lineTo(rx + (cm%50===0 ? 16 : 9), y); ctx.stroke();
+                if (cm%50===0) txt(cm, rx + 22, y + 4, { s:10.5, c:C.mute, w:700 });
+            }
+            const yt = projectY(cmToY(TARGET_CM));
+            { const yb1 = projectY(cmToY(TARGET_CM - TOL_CM)), yb2 = projectY(cmToY(TARGET_CM + TOL_CM)); ctx.fillStyle = 'rgba(52,211,153,.2)'; ctx.fillRect(AX + 6, Math.min(yb1, yb2), AW - 12, Math.abs(yb1 - yb2)); } ctx.setLineDash([9,8]); ctx.strokeStyle = C.warn; ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.moveTo(AX + 60, yt); ctx.lineTo(AX + AW - 20, yt); ctx.stroke(); ctx.setLineDash([]);
+            txt('potong di sini — 150 cm', AX + AW - 24, yt - 10, { s:13, a:'right', c:C.warn, w:800 });
+        } else if (S.id === 'stripA' || S.id === 'stripB') {
+            const end = S.end;
+            const edge = end === 'A' ? tipA : tipB;
+            const target = end === 'A' ? edge - STRIP_LEN : edge + STRIP_LEN;
+            const yt = projectY(target);
+            ctx.setLineDash([8,7]); ctx.strokeStyle = C.ok; ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.moveTo(AX + 60, yt); ctx.lineTo(AX + AW - 20, yt); ctx.stroke(); ctx.setLineDash([]);
+            txt('kupas sampai garis ini (±1,2 cm)', AX + AW - 24, yt - 10, { s:12.5, a:'right', c:C.ok, w:800 });
+        } else if (S.id === 'trimA' || S.id === 'trimB') {
+            const end = S.end;
+            const edge = end === 'A' ? (tipA - exA) : (tipB + exB);
+            const targetA = end === 'A' ? edge + TRIM_MIN : edge - TRIM_MIN;
+            const targetB = end === 'A' ? edge + TRIM_MAX : edge - TRIM_MAX;
+            [targetA, targetB].forEach((target, i) => {
+                const yt = projectY(target);
+                ctx.setLineDash([8,7]); ctx.strokeStyle = i ? C.warn : C.ok; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(AX + 60, yt); ctx.lineTo(AX + AW - 20, yt); ctx.stroke(); ctx.setLineDash([]);
+            });
+            txt('ratakan di antara dua garis (1,2–1,5 cm dari jaket)', AX + AW - 24, projectY(targetA) - 10, { s:12.5, a:'right', c:C.warn, w:800 });
+        } else if (S.id === 'connA' || S.id === 'connB') {
+            txt('Seret konektor dari panel kanan ke ujung kabel', AX + AW - 24, AY + 60, { s:12.5, a:'right', c:C.acc, w:800 });
+        } else if (S.id === 'crimpA' || S.id === 'crimpB') {
+            txt('Tahan tang crimping 0,3 detik pada konektor', AX + AW - 24, AY + 60, { s:12.5, a:'right', c:C.acc, w:800 });
+        }
+        txt('Langkah ' + (lv.step+1) + ' dari ' + STEPS.length + ' · ' + S.label, AX + 12, AY + AH - 12, { s:11.5, c:C.mute, w:700 });
+        ctx.restore();
+        drawMissionBanner();
+        drawPinBox();
+        if (lv.wireSel) txt('Kabel terpilih: ' + WC[lv.wireSel].n + ' — klik slot pin tujuan', AX+AW/2, AY+AH-30, { s:12.5, a:'center', c:C.acc, w:800 });
+        drawTestPanel(now);
+        drawDebugOverlay();
+    }
+
+    lv.draw = function () {
+        lv.tick();
+        const now = performance.now();
+        if (lv.phase === 'load') { drawLoading(now); return; }
+        if (lv.phase === 'error') { drawLoadError(); return; }
+        if (lv.limit && !lv.finished && lv.phase !== 'fin' && lv.elapsed() > lv.limit) {
+            lv.finished = true; lv.dur = lv.limit; endLevel(lv, false); return;
+        }
+        if (lv.phase === 'deploy') { drawDeploy(now); return; }
+        if (lv.phase === 'quiz' || lv.phase === 'fin') {
+            deskBG(); hud(lv);
+            drawToolPanel(PL, TOOLS_L, 'ALAT');
+            drawToolPanel(PR, TOOLS_R, 'PASANG');
+            drawCableStatus();
+            rr(AX-2, AY-2, AW+4, AH+4, 12); ctx.fillStyle = '#0a1626'; ctx.fill();
+            render3D(now);
+            drawAndiBar(now);
+            drawQuiz(lv);
+            return;
+        }
+        deskBG(); hud(lv); drawTopStrip();
+        drawToolPanel(PL, TOOLS_L, 'ALAT');
+        drawToolPanel(PR, TOOLS_R, 'PASANG');
+        drawCableStatus();
+        drawWorkArea(now);
+        drawAndiBar(now);
+        drawStepsPanel();
+        drawHelpPanel();
+    };
+
+    function inViewport(p) { return p.x >= AX && p.x <= AX + AW && p.y >= AY && p.y <= AY + AH; }
+    lv.down = function (p) {
+        if (lv.phase !== 'play') return;
+        if (!inViewport(p)) return;
+        const S = curStep();
+        if (S.id === 'orderA' || S.id === 'orderB') {
+            const id = pickWire(p);
+            if (id) { lv.wireSel = (lv.wireSel === id) ? null : id; SND.klik(); return; }
+            lv.wireSel = null;
+            return;
+        }
+        if (S.id === 'cut' && lv.tool === 'gunting') {
+            if (lv.modeMudah) { doCut(cmToY(TARGET_CM)); return; }
+            lv.drag = { mode:'cut', x0:p.x, y0:p.y, x1:p.x, y1:p.y }; return;
+        }
+        if ((S.id === 'stripA' || S.id === 'stripB') && lv.tool === 'strip') {
+            const end = S.end;
+            if (lv.modeMudah) { doStrip(end, STRIP_LEN); return; }
+            lv.drag = { mode:'strip', end, x0:p.x, y0:p.y, x1:p.x, y1:p.y }; return;
+        }
+        if ((S.id === 'trimA' || S.id === 'trimB') && lv.tool === 'gunting') {
+            if (lv.modeMudah) {
+                const edge = S.end === 'A' ? (tipA - exA) : (tipB + exB);
+                doTrim(S.end, S.end === 'A' ? edge + (TRIM_MIN + TRIM_MAX)/2 : edge - (TRIM_MIN + TRIM_MAX)/2);
+                return;
+            }
+            lv.drag = { mode:'trim', end:S.end, x0:p.x, y0:p.y, x1:p.x, y1:p.y }; return;
+        }
+        if (S.id === 'connA' || S.id === 'connB') {
+            if (lv.tool !== 'rj45') { say('Pilih Konektor RJ-45 dulu di panel kanan.', 'info'); return; }
+            lv.drag = { mode:'conn', end:S.end, x0:p.x, y0:p.y, x1:p.x, y1:p.y };
+            return;
+        }
+        if (S.id === 'crimpA' || S.id === 'crimpB') {
+            if (lv.tool !== 'crimp') { say('Pilih Tang Crimping dulu di panel kanan.', 'info'); return; }
+            lv.drag = { mode:'crimp', end:S.end, t0:performance.now() }; return;
+        }
+        if (S.id === 'tester') {
+            if (lv.tool !== 'tester') { say('Pilih Tester dulu di panel kanan.', 'info'); return; }
+            if (KAB.test) return;
+            doTest(); return;
+        }
+    };
+    lv.move = function (p) { if (lv.drag) { lv.drag.x1 = p.x; lv.drag.y1 = p.y; } };
+    lv.up = function (p) {
+        if (!lv.drag) return;
+        const d = lv.drag; lv.drag = null;
+        if (d.mode === 'cut') {
+            const span = Math.abs(d.x1 - d.x0), cx = AX + AW/2;
+            const straddle = (d.x0 < cx - 30 && d.x1 > cx + 30) || (d.x1 < cx - 30 && d.x0 > cx + 30);
+            
+            const ly = worldYAt({ x:(d.x0+d.x1)/2, y:(d.y0+d.y1)/2 });
+            doCut(ly);
+        } else if (d.mode === 'strip') {
+            const len = Math.abs(d.y1 - d.y0);
+            if (len < 18) { say('Seret pengupas ke bawah sekitar 1,2–1,5 cm.', 'info'); return; }
+            const worldLen = (len / AH) * (Y_TOP0 - Y_BOT);
+            doStrip(d.end, Math.min(worldLen, STRIP_LEN * 2));
+        } else if (d.mode === 'trim') {
+            const span = Math.abs(d.x1 - d.x0);
+            
+            const ly = worldYAt({ x:(d.x0+d.x1)/2, y:(d.y0+d.y1)/2 });
+            doTrim(d.end, ly);
+        } else if (d.mode === 'conn') {
+            const S = curStep();
+            const tip = S.end === 'A' ? tipA : tipB;
+            const v = new THREE.Vector3(0, tip, 0).project(R.camera);
+            const targetY = AY + (1 - (v.y + 1)/2) * AH;
+            if (Math.abs(p.y - targetY) < 140 || lv.modeMudah) doConnector(S.end);
+            else say('Dekatkan kursor/konektor ke ujung kabel.', 'info');
+        } else if (d.mode === 'crimp') {
+            const elapsed = performance.now() - d.t0;
+            if (elapsed < 220) { say('Tahan tang crimping sebentar pada konektor.', 'info'); return; }
+            doCrimp(d.end);
+        }
+    };
+
+    function tryLoad() {
+        if (!webglOK()) { lv.phase = 'error'; lv.loadErr = 'nowebgl'; return; }
+        loadThree(err => {
+            if (err || !window.THREE) { lv.phase = 'error'; lv.loadErr = String(err || 'three'); return; }
+            try { init3D(); } catch (e) { console.error(e); lv.phase = 'error'; lv.loadErr = 'init'; return; }
+            lv.phase = 'play'; lv.t0 = performance.now();
+            gotoCamForStep(0, 900);
+            andi('Klik Sarung Tangan di panel kiri. Titik merah = alat yang harus dipakai.');
+        });
+    }
+    lv.loadT0 = performance.now();
+    tryLoad();
+
+    lv.makeResult = function (lv2, ok, stars, isNewBest) {
+        const ketepatan = Math.max(0, 100 - lv2.mistakes.length * 4);
+        const kerapian = KAB.ends.A.jacketIn && KAB.ends.B.jacketIn ? 100 : 60;
+        const hematBahan = (KAB.usedCm <= 155 ? 25 : KAB.usedCm <= 165 ? 15 : 5) + (KAB.rj45Used === 2 ? 25 : KAB.rj45Used === 3 ? 15 : 5);
+        const kecepatan = lv2.dur <= 180 ? 20 : lv2.dur <= 300 ? 12 : 5;
+        const badges = [];
+        if (ok && lv2.mistakes.filter(m => m.includes('Gagal uji')).length === 0) badges.push('Crimp Sempurna');
+        if (KAB.usedCm <= 155) badges.push('Hemat Kabel');
+        if (KAB.rj45Used === 2) badges.push('Hemat Konektor');
+        if (lv2.mistakes.length === 0) badges.push('Tangan Cekatan');
+        if (KAB.helpUsed === 0) badges.push('Tanpa Bantuan');
+        badges.forEach(b => { if (!save.badges.includes(b)) save.badges.push(b); });
+        persist();
+        lv2.logExtra = { kabel_cm: KAB.usedCm, rj45: KAB.rj45Used, bantuan: KAB.helpUsed, lencana: badges.join('|') || '-' };
+        lv2.boardKey = 'board2';
+        return {
+            draw() {
+                bg(false);
+                const x = 140, y = 50, w = 680, h = 500;
+                rr(x, y, w, h, 20); ctx.fillStyle = C.panel; ctx.fill();
+                ctx.strokeStyle = ok ? C.ok : C.bad; ctx.lineWidth = 2; ctx.stroke();
+                txt(ok ? 'Level 2 selesai' : 'Waktu habis', x+w/2, y+44, { s:30, f:FONT_H, a:'center', c: ok ? C.ok : C.bad, w:600 });
+                if (isNewBest) txt('REKOR BARU!', x+w/2, y+68, { s:14, f:FONT_H, a:'center', c:C.warn, w:600 });
+                for (let i=0;i<3;i++) star(x+w/2 - 48 + i*48, y+100, 18, i < stars);
+                txt(lv2.score, x+w/2, y+160, { s:48, f:FONT_H, a:'center', c:C.warn, w:600 });
+                txt('skor akhir', x+w/2, y+178, { s:12, a:'center', c:C.mute });
+                txt('Rincian Skor', x+34, y+206, { s:14, c:C.acc, w:800 });
+                const rows = [
+                    ['Ketepatan urutan & langkah', ketepatan + ' / 100'],
+                    ['Kerapian (jaket masuk konektor)', kerapian + ' / 100'],
+                    ['Hemat bahan & konektor', Math.min(50, hematBahan) + ' / 50'],
+                    ['Kecepatan', kecepatan + ' / 20'],
+                    ['Kabel terpakai', KAB.usedCm + ' cm'],
+                    ['Konektor terpakai', KAB.rj45Used + ' buah'],
+                    ['Bantuan dibuka', KAB.helpUsed + '×']
+                ];
+                rows.forEach((r, i) => {
+                    const yy = y+228 + i*22;
+                    txt(r[0], x+34, yy, { s:12, c:C.mute, w:700 });
+                    txt(r[1], x+w-34, yy, { s:12, c:C.text, w:800, a:'right' });
+                });
+                txt('Lencana', x+34, y+402, { s:13, c:C.acc, w:800 });
+                if (!badges.length) txt('Belum ada lencana di sesi ini.', x+34, y+424, { s:12, c:C.mute });
+                else badges.forEach((b, i) => {
+                    const bx = x + 34 + i*126, by = y+412;
+                    rr(bx, by, 118, 22, 11); ctx.fillStyle = 'rgba(212,167,44,.2)'; ctx.fill();
+                    ctx.strokeStyle = 'rgba(212,167,44,.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+                    txt('★ ' + b, bx+59, by+15, { s:11, a:'center', c:C.warn, w:800 });
+                });
+                if (ok) {
+                    const top = (save.board2 || []).slice(0, 3);
+                    txt('Top Level 2:', x+34, y+456, { s:12, c:C.mute, w:700 });
+                    top.forEach((e, i) => {
+                        const nm = e.nama.length > 12 ? e.nama.slice(0,11)+'…' : e.nama;
+                        txt((i+1) + '. ' + nm + ' — ' + e.skor + ' pts', x+34, y+472 + i*16, { s:11, c: i===0 ? C.warn : C.text, w:700 });
+                    });
+                }
+                const by2 = y+h-52;
+                btn(x+34, by2, 130, 42, 'Ulangi', () => startLevel(1), { color:'#334155', tc:C.text, s:14 });
+                btn(x+180, by2, 180, 42, 'Papan skor L2', () => go(levelsScene), { color:'#2b4360', tc:C.text, s:14 });
+                if (ok) btn(x+376, by2, 270, 42, 'Lanjut ke Level 3 ▸', () => startLevel(2), { color:C.ok, s:15 });
+                else btn(x+376, by2, 270, 42, 'Pilih level', () => go(levelsScene), { color:C.acc, s:15 });
+            }
+        };
+    };
+
+    return lv;
+}
+
+/* ================================================================
+   LEVEL 3 / 4 / 5
+   ================================================================ */
+function drawChart(x, y, title, std) {
+    rr(x, y, 250, 320, 14); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
+    txt('Urutan ' + title, x + 18, y + 32, { s: 19, f: FONT_H, w: 600, c: C.acc });
+    std.forEach((id, i) => {
+        const ry = y + 50 + i * 32;
+        txt('Pin ' + (i + 1), x + 18, ry + 15, { s: 13, c: C.mute });
+        drawWire(x + 64, ry, 52, 18, id, true);
+        txt(WC[id].n, x + 126, ry + 15, { s: 13, w: 700 });
+    });
+}
+function makeCrimp(n) {
+    const hard = n === 3;
+    const lv = baseLevel(n, hard ? 'Crimping Crossover (T568A–T568B)' : 'Crimping Straight-Through (T568B)');
+    const sw = hard ? 40 : 48, gap = hard ? 5 : 6, span = 8 * sw + 7 * gap, cy = 140;
+    lv.conns = hard ? [
+        { label: 'Ujung A — T568A', short: 'Ujung A', std: T568A, x: 70 },
+        { label: 'Ujung B — T568B', short: 'Ujung B', std: T568B, x: 535 }
+    ] : [{ label: 'Konektor RJ-45 (tampak atas, pin 1 di kiri)', short: '', std: T568B, x: 292 }];
+    lv.conns.forEach(c => { c.slots = Array(8).fill(null); c.res = null; });
+    lv.tray = shuffle(Object.keys(WC)); lv.drag = null; lv.testDone = false; lv.hintUntil = 0;
+    if (hard) {
+        lv.limit = 180; lv.wrongPicks = [];
+        lv.quiz = { q: 'Kabel crossover umumnya dipakai untuk menghubungkan…', opts: ['Komputer ke Switch', 'Komputer ke Komputer secara langsung', 'Komputer ke Access Point'], ans: 1, why: 'Crossover menukar jalur kirim dan terima, sehingga dua perangkat sejenis bisa terhubung langsung.' };
+        say('Ujung A disusun T568A, ujung B disusun T568B. Tabel warna disembunyikan dan waktu terbatas.', 'info');
+    } else say('Seret warna kabel dari rak ke pin 1–8 sesuai tabel T568B, lalu tekan Crimp & Uji.', 'info');
+    const trayX = i => 200 + i * 80;
+    const slotRect = (c, i) => ({ x: c.x + i * (sw + gap), y: cy, w: sw, h: 150 });
+    const edited = () => { lv.conns.forEach(c => c.res = null); lv.testDone = false; };
+    function runTest() {
+        if (lv.phase !== 'play') return;
+        if (lv.conns.some(c => c.slots.some(s => !s))) { say('Isi semua 8 pin pada setiap konektor sebelum diuji.', 'info'); return; }
+        lv.conns.forEach(c => { c.res = c.slots.map((s, i) => s === c.std[i]); });
+        lv.phase = 'test'; lv.testT0 = performance.now(); lv.drag = null;
+    }
+    function afterTest() {
+        const bad = [];
+        lv.conns.forEach(c => { const w = c.res.map((r, i) => r ? 0 : i + 1).filter(Boolean); if (w.length) bad.push((c.short ? c.short + ': ' : '') + 'pin ' + w.join(', ')); });
+        lv.testDone = true;
+        if (!bad.length) { say('Semua LED hijau. Kabel lulus uji!', 'ok'); lv.phase = 'ok'; lv.okAt = performance.now(); }
+        else { lv.phase = 'play'; lv.penalize(10, 'Urutan warna salah → ' + bad.join(' | ')); }
+    }
+    function drawConn(c) {
+        txt(c.label, c.x + span / 2, cy - 46, { s: 15, a: 'center' });
+        rr(c.x - 12, cy - 34, span + 24, 196, 12); ctx.fillStyle = 'rgba(180,215,240,.14)'; ctx.fill(); ctx.strokeStyle = 'rgba(180,215,240,.5)'; ctx.lineWidth = 2; ctx.stroke();
+        for (let i = 0; i < 8; i++) {
+            const r = slotRect(c, i);
+            rr(r.x, r.y, r.w, r.h, 6); ctx.fillStyle = '#0a1524'; ctx.fill();
+            ctx.fillStyle = C.gold; ctx.fillRect(r.x + sw * .3, cy - 26, sw * .4, 22);
+            if (c.slots[i]) drawWire(r.x + 4, r.y + 3, sw - 8, r.h - 6, c.slots[i]);
+            let stroke = '#243a55', lw = 1.5;
+            if (c.res && lv.testDone && lv.phase !== 'test') { stroke = c.res[i] ? C.ok : C.bad; lw = 3; }
+            if (lv.drag && lv.phase === 'play' && mouse.x >= r.x - 3 && mouse.x <= r.x + r.w + 3 && mouse.y >= r.y - 30 && mouse.y <= r.y + r.h + 20) { stroke = C.acc; lw = 3; }
+            rr(r.x, r.y, r.w, r.h, 6); ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke();
+            ctx.beginPath(); ctx.arc(r.x + sw / 2, r.y + 16, 10, 0, 6.3); ctx.fillStyle = 'rgba(6,14,26,.85)'; ctx.fill();
+            txt(i + 1, r.x + sw / 2, r.y + 21, { s: 13, a: 'center' });
+        }
+        rr(c.x + span * .12, cy + 162, span * .76, 54, 10); const g = ctx.createLinearGradient(0, cy + 162, 0, cy + 216); g.addColorStop(0, '#a3b1c2'); g.addColorStop(1, '#6b7a8c'); ctx.fillStyle = g; ctx.fill();
+        txt('Kabel UTP', c.x + span / 2, cy + 195, { s: 14, a: 'center', c: '#0f1c2d' });
+        const ty = cy + 224;
+        rr(c.x - 12, ty, span + 24, 46, 10); ctx.fillStyle = '#08111e'; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 1.5; ctx.stroke();
+        const now = performance.now();
+        for (let i = 0; i < 8; i++) {
+            const r = slotRect(c, i);
+            let lit = false;
+            if (c.res) { lit = lv.phase === 'test' ? (now - lv.testT0) > i * 220 : true; }
+            ctx.beginPath(); ctx.arc(r.x + sw / 2, ty + 23, 9, 0, 6.3); ctx.fillStyle = lit ? (c.res[i] ? C.ok : C.bad) : '#1d2a3d'; ctx.fill();
+            if (lit) { ctx.save(); ctx.shadowColor = c.res[i] ? C.ok : C.bad; ctx.shadowBlur = 12; ctx.fill(); ctx.restore(); }
+            txt(i + 1, r.x + sw / 2, ty + 27, { s: 10, a: 'center', c: lit ? '#04120c' : '#5f7389' });
+        }
+        txt('LAN Tester', c.x + span / 2, ty + 62, { s: 11, a: 'center', c: C.mute });
+    }
+    lv.draw = function () {
+        lv.tick();
+        const now = performance.now();
+        if (lv.phase === 'test' && now - lv.testT0 > 2300) afterTest();
+        if (lv.phase === 'ok' && now - lv.okAt > 1300) { if (hard) { lv.phase = 'quiz'; } else lv.win(300); }
+        if (lv.limit && !lv.finished && (lv.phase === 'play' || lv.phase === 'test') && lv.elapsed() > lv.limit) { lv.finished = true; lv.dur = lv.limit; endLevel(lv, false); return; }
+        deskBG(); hud(lv);
+        if (!hard) {
+            drawChart(20, 84, 'T568B', T568B);
+            rr(750, 84, 190, 320, 14); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
+            txt('Cara kerja', 770, 116, { s: 19, f: FONT_H, w: 600, c: C.acc });
+            para('1. Seret warna dari rak kabel ke slot pin 1–8.\n2. Isi semua pin sesuai tabel.\n3. Tekan Crimp & Uji.\n4. Semua LED hijau berarti lulus.', 770, 142, 152, 20, { s: 13, c: C.text });
+        } else txt('Susun ujung A sebagai T568A dan ujung B sebagai T568B. Tabel warna tidak ditampilkan.', W / 2, 80, { s: 14, a: 'center', c: C.mute });
+        lv.conns.forEach(drawConn);
+        rr(150, 428, 660, 158, 14); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
+        txt('Rak kabel — seret warna ke slot pin', W / 2, 448, { s: 12, a: 'center', c: C.mute });
+        lv.tray.forEach((id, i) => {
+            const x = trayX(i); if (lv.phase === 'play' && over(x - 22, 452, 44, 96)) hoverBtn = true;
+            drawWire(x - 17, 456, 34, 88, id);
+            txt(WC[id].n, x, 566, { s: 11, a: 'center', c: C.mute });
+        });
+        const canAct = lv.phase === 'play';
+        btn(820, 440, 120, 46, 'Crimp & Uji', runTest, { color: C.ok, disabled: !canAct, s: 15 });
+        btn(820, 494, 120, 32, 'Reset', () => { if (lv.phase === 'play') { lv.conns.forEach(c => c.slots.fill(null)); edited(); } }, { color: '#475569', tc: C.text, s: 14, disabled: !canAct });
+        if (hard) btn(820, 534, 120, 32, 'Contekan −8', () => { if (lv.phase === 'play' && lv.hintUntil < performance.now()) { lv.penalize(8, 'Membuka contekan'); lv.hintUntil = performance.now() + 6000; } }, { color: C.warn, s: 13, disabled: !canAct });
+        if (lv.drag) drawWire(mouse.x - 17, mouse.y - 44, 34, 88, lv.drag.id);
+        if (hard && lv.hintUntil > now) {
+            ctx.fillStyle = 'rgba(4,10,20,.84)'; ctx.fillRect(0, 54, W, H - 54);
+            drawChart(150, 110, 'T568A', T568A); drawChart(560, 110, 'T568B', T568B);
+            txt('Contekan ditutup dalam ' + Math.ceil((lv.hintUntil - now) / 1000) + ' detik', W / 2, 470, { s: 16, a: 'center', c: C.warn });
+        }
+        if (lv.phase === 'quiz' || (lv.phase === 'fin' && lv.quiz)) drawQuiz(lv);
+    };
+    lv.down = function (p) {
+        if (lv.phase !== 'play' || lv.hintUntil > performance.now()) return;
+        for (let i = 0; i < 8; i++) { const x = trayX(i); if (p.x >= x - 22 && p.x <= x + 22 && p.y >= 452 && p.y <= 548) { lv.drag = { id: lv.tray[i] }; return; } }
+        for (const c of lv.conns) for (let i = 0; i < 8; i++) { if (c.slots[i] && inR(p, slotRect(c, i))) { lv.drag = { id: c.slots[i] }; c.slots[i] = null; edited(); return; } }
+    };
+    lv.up = function (p) {
+        if (!lv.drag) return;
+        for (const c of lv.conns) for (let i = 0; i < 8; i++) {
+            const r = slotRect(c, i);
+            if (p.x >= r.x - 3 && p.x <= r.x + r.w + 3 && p.y >= r.y - 30 && p.y <= r.y + r.h + 20) { c.slots[i] = lv.drag.id; edited(); lv.drag = null; return; }
+        }
+        lv.drag = null;
+    };
+    return lv;
+}
+
+function makeL4() {
+    const lv = baseLevel(4, 'Pasang ke Patch Panel');
+    const rooms = ['Lab Komputer', 'Ruang Guru', 'Perpustakaan', 'Tata Usaha'];
+    const ports = shuffle([1, 2, 3, 4, 5, 6, 7, 8]).slice(0, 4);
+    const homes = shuffle([330, 480, 630, 780]);
+    const HY = 510;
+    lv.cables = rooms.map((r, i) => ({ room: r, port: ports[i], home: homes[i], hx: homes[i], hy: HY, seated: null, punched: false }));
+    lv.occ = Array(8).fill(null); lv.tool = null; lv.blade = 'in'; lv.drag = null; lv.pa = null;
+    const TOOLS = [{ id: 'crimp', n: 'Crimping Tool' }, { id: 'punch', n: 'Punch-down Tool' }, { id: 'obeng', n: 'Obeng' }];
+    const bx = j => 290 + j * 77, BY = 124;
+    say('Pasang tiap kabel ke port sesuai daftar jalur, lalu tekan kawatnya dengan alat yang tepat.', 'info');
+    function punchAttempt(j) {
+        const c = lv.occ[j];
+        if (!lv.tool) { say('Pilih alat terlebih dahulu.', 'info'); return; }
+        if (lv.tool !== 'punch') { lv.penalize(5, (TOOLS.find(t => t.id === lv.tool).n) + ' bukan alat untuk punch-down.'); return; }
+        if (!c) { lv.penalize(5, 'Port ' + (j + 1) + ' belum berisi kabel.'); return; }
+        if (c.punched) return;
+        if (lv.blade === 'in') { lv.penalize(5, 'Bilah potong harus menghadap ke luar agar sisa kawat terpotong rapi.'); return; }
+        c.punched = true; lv.pa = { j, t0: performance.now() };
+        const left = lv.cables.filter(k => !k.punched).length;
+        if (left === 0) { say('Semua kabel terminasi dengan benar. Jalur siap dipakai!', 'ok'); lv.win(1800); }
+        else say('Port ' + (j + 1) + ' (' + c.room + ') terminasi. Sisa ' + left + ' kabel.', 'ok');
+    }
+    lv.draw = function () {
+        lv.tick(); deskBG(); hud(lv);
+        rr(20, 84, 250, 250, 14); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
+        txt('Daftar jalur', 38, 118, { s: 20, f: FONT_H, w: 600, c: C.acc });
+        lv.cables.slice().sort((a, b) => a.port - b.port).forEach((c, i) => {
+            const y = 140 + i * 44; rr(34, y, 222, 36, 8); ctx.fillStyle = '#0f1c2d'; ctx.fill();
+            txt('Port ' + c.port, 46, y + 24, { s: 14, c: C.warn }); txt(c.room, 116, y + 24, { s: 14 });
+        });
+        txt(lv.cables.filter(c => c.punched).length + ' / 4 terminasi', 145, 318, { s: 14, a: 'center', c: C.mute });
+        rr(272, 100, 640, 150, 14); ctx.fillStyle = '#233a55'; ctx.fill(); ctx.strokeStyle = '#4a6a8f'; ctx.lineWidth = 2; ctx.stroke();
+        for (let j = 0; j < 8; j++) {
+            const x = bx(j); const c = lv.occ[j];
+            const hov = lv.drag && mouse.x > x - 12 && mouse.x < x + 76 && mouse.y > 90 && mouse.y < 320;
+            rr(x, BY, 64, 92, 8); ctx.fillStyle = c && c.punched ? '#0f3d2e' : '#101d2f'; ctx.fill();
+            ctx.lineWidth = hov ? 3 : 2; ctx.strokeStyle = hov ? C.acc : (c && c.punched ? C.ok : '#3c5878'); ctx.stroke();
+            for (let k = 0; k < 8; k++) { ctx.fillStyle = WC[T568B[k]].c; ctx.fillRect(x + 9 + k * 6.6, BY + 8, 4, 26); }
+            txt(j + 1, x + 32, BY + 114, { s: 15, a: 'center', c: C.mute });
+            if (c && c.punched) tickIcon(x + 32, BY + 62, 18, C.ok);
+        }
+        for (const c of lv.cables) {
+            ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(c.hx, c.hy); ctx.bezierCurveTo(c.hx, c.hy + 90, c.home, c.hy + 40, c.home, H + 40);
+            ctx.lineWidth = 11; ctx.strokeStyle = '#2c4a78'; ctx.stroke(); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.stroke();
+            for (let k = 0; k < 8; k++) {
+                const d = WC[T568B[k]]; let x1, y1, x2, y2;
+                if (c.seated !== null) { x1 = c.hx - 14 + k * 4; y1 = c.hy - 6; x2 = bx(c.seated) + 11 + k * 6.6; y2 = BY + 92; }
+                else { x1 = c.hx - 14 + k * 4; y1 = c.hy - 6; x2 = x1; y2 = c.hy - 32; }
+                if (c.punched) { y2 = c.hy - 40; }
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineWidth = 3; ctx.strokeStyle = d.st ? '#f2f2ee' : d.c; ctx.setLineDash([]); ctx.stroke();
+                if (d.st) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.strokeStyle = d.c; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]); }
+            }
+            const hov = !c.punched && Math.hypot(mouse.x - c.hx, mouse.y - c.hy) < 18; if (hov) hoverBtn = true;
+            ctx.beginPath(); ctx.arc(c.hx, c.hy, 13, 0, 6.3); ctx.fillStyle = c.punched ? '#166534' : '#93c5fd'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = hov ? '#fff' : '#1e3a5f'; ctx.stroke();
+            rr(c.hx - 36, c.hy + 17, 72, 32, 6); ctx.fillStyle = '#0b1626'; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 1.5; ctx.stroke();
+            const nm = c.room.split(' ');
+            txt(nm[0], c.hx, c.hy + 30, { s: 11, a: 'center' }); txt(nm.slice(1).join(' '), c.hx, c.hy + 43, { s: 11, a: 'center' });
+        }
+        TOOLS.forEach((t, i) => {
+            const x = 290 + i * 140, y = 330, w = 130, h = 62, sel = lv.tool === t.id, hov = over(x, y, w, h); if (hov) hoverBtn = true;
+            rr(x, y, w, h, 12); ctx.fillStyle = sel ? '#1d4f74' : (hov ? '#2a4565' : C.panel2); ctx.fill(); ctx.lineWidth = sel ? 3 : 2; ctx.strokeStyle = sel ? C.acc : C.line; ctx.stroke();
+            icon(t.id, x + 34, y + 31, .6); txt(t.n, x + 62, y + 35, { s: 12.5, w: 800 });
+            hit(x, y, w, h, () => { lv.tool = t.id; });
+        });
+        btn(725, 330, 187, 62, 'Bilah: ' + (lv.blade === 'in' ? 'menghadap dalam' : 'menghadap luar'), () => { lv.blade = lv.blade === 'in' ? 'out' : 'in'; }, { color: lv.blade === 'out' ? C.ok : C.warn, s: 14 });
+        para('Langkah: seret kabel ke port sesuai daftar jalur → pilih Punch-down Tool → atur bilah menghadap luar → klik port berisi kabel.', 290, 420, 620, 20, { s: 14, c: C.mute });
+        if (lv.pa) {
+            const dt = performance.now() - lv.pa.t0; if (dt < 600) {
+                const cx = bx(lv.pa.j) + 32; icon('punch', cx, BY + 92 + 70 - Math.min(dt, 180) / 180 * 44, 1);
+                if (dt > 180) { ctx.beginPath(); ctx.arc(cx, BY + 92, (dt - 180) / 6, 0, 6.3); ctx.strokeStyle = 'rgba(251,191,36,' + (1 - (dt - 180) / 420) + ')'; ctx.lineWidth = 3; ctx.stroke(); }
+            } else lv.pa = null;
+        }
+    };
+    lv.down = function (p) {
+        if (lv.phase !== 'play') return;
+        for (const c of lv.cables) {
+            if (!c.punched && Math.hypot(p.x - c.hx, p.y - c.hy) < 20) {
+                if (c.seated !== null) { lv.occ[c.seated] = null; c.seated = null; }
+                lv.drag = { c }; return;
+            }
+        }
+        for (let j = 0; j < 8; j++) { if (inR(p, { x: bx(j), y: BY, w: 64, h: 92 })) { punchAttempt(j); return; } }
+    };
+    lv.move = function (p) { if (lv.drag) { lv.drag.c.hx = p.x; lv.drag.c.hy = p.y; } };
+    lv.up = function (p) {
+        if (!lv.drag) return; const c = lv.drag.c; lv.drag = null;
+        let j = -1;
+        for (let k = 0; k < 8; k++) { if (p.x >= bx(k) - 12 && p.x <= bx(k) + 76 && p.y >= 90 && p.y <= 320) { j = k; break; } }
+        const home = () => { c.hx = c.home; c.hy = HY; };
+        if (j < 0) { c.hx = Math.min(930, Math.max(30, p.x)); c.hy = Math.min(560, Math.max(470, p.y)); if (p.y < 470) home(); return; }
+        if (lv.occ[j]) { say('Port ' + (j + 1) + ' sudah terisi kabel lain.', 'info'); home(); return; }
+        if (j + 1 !== c.port) { lv.penalize(10, 'Kabel ' + c.room + ' harus ke Port ' + c.port + ', bukan Port ' + (j + 1) + '. Cek daftar jalur.'); home(); return; }
+        c.seated = j; lv.occ[j] = c; c.hx = bx(j) + 32; c.hy = 285;
+        say('Kabel ' + c.room + ' terpasang di Port ' + (j + 1) + '. Sekarang tekan dengan punch-down tool.', 'ok');
+    };
+    return lv;
+}
+
+function makeL5() {
+    const lv = baseLevel(5, 'Instalasi Rack Server');
+    lv.phase = 'place'; lv.wrongPicks = [];
+    const RX = 340, RY = 70, U = 40, N = 12, RW = 280;
+    const devs = shuffle([
+        { id: 'patch',  n: 'Patch Panel 24-port', u: 1, col: '#4b5d73' },
+        { id: 'sw',     n: 'Switch 24-port',      u: 1, col: '#0e7490' },
+        { id: 'router', n: 'Router',              u: 1, col: '#6d3fd0' },
+        { id: 'server', n: 'Server',              u: 2, col: '#3a4a5f' },
+        { id: 'ups',    n: 'UPS (catu daya)',     u: 2, col: '#a5560f' }
+    ]);
+    let ty = 88; devs.forEach(d => { d.slot = null; d.used = [false, false, false]; d.ty = ty; ty += d.u * U + 16; });
+    const byId = id => devs.find(d => d.id === id);
+    const LINKS = [['router', 'sw', 'Router — Switch (uplink)'], ['sw', 'server', 'Switch — Server'], ['sw', 'patch', 'Switch — Patch Panel'], ['ups', 'server', 'UPS — Server (daya)']];
+    const RULES = ['UPS di posisi paling bawah', 'Server di bawah perangkat jaringan (router, switch, patch panel)', 'Patch panel di posisi paling atas', 'Switch berada di atas router'];
+    lv.links = []; lv.sel = null; lv.drag = null; lv.ruleOk = null;
+    lv.quiz = { q: 'Mengapa perangkat berat seperti UPS dan server diletakkan di bagian bawah rack?', opts: ['Agar tampilan rack lebih rapi', 'Agar rack lebih stabil dan tidak mudah terguling', 'Agar patch cord menjadi lebih pendek'], ans: 1, why: 'Beban berat di bawah menurunkan titik berat sehingga rack lebih stabil.' };
+    say('Seret perangkat ke rack. Ikuti aturan rack di panel kanan, lalu tekan Cek Susunan Rack.', 'info');
+    const devRect = d => d.slot != null ? { x: RX, y: RY + (N - d.slot - d.u) * U, w: RW, h: d.u * U } : { x: 20, y: d.ty, w: RW, h: d.u * U };
+    const dotPos = (d, k) => { const r = devRect(d); return { x: r.x + RW - 16 - k * 22, y: r.y + r.h / 2 }; };
+    function snap(d) {
+        if (mouse.x < RX - 50 || mouse.x > RX + RW + 50 || mouse.y < RY - 30 || mouse.y > RY + N * U + 30) return null;
+        const top = mouse.y - lv.drag.offY; let r = Math.round((top - RY) / U); let s = N - r - d.u;
+        return Math.max(0, Math.min(N - d.u, s));
+    }
+    const free = (d, s) => !devs.some(o => o !== d && o.slot != null && s < o.slot + o.u && o.slot < s + d.u);
+    function drawDevice(d, x, y, a) {
+        const w = RW, h = d.u * U - 4; ctx.save(); ctx.globalAlpha = a == null ? 1 : a;
+        rr(x, y + 2, w, h, 5); ctx.fillStyle = d.col; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.arc(x + 8, y + 2 + h / 2, 3, 0, 6.3); ctx.arc(x + w - 8, y + 2 + h / 2, 3, 0, 6.3); ctx.fill();
+        txt(d.n, x + 20, y + 16, { s: 11.5, c: '#ffffff' });
+        ctx.fillStyle = '#0a1220';
+        if (d.id === 'patch' || d.id === 'sw') { for (let k = 0; k < 8; k++)ctx.fillRect(x + 20 + k * 19, y + 21, 13, 11); }
+        if (d.id === 'router') { for (let k = 0; k < 4; k++)ctx.fillRect(x + 20 + k * 24, y + 21, 16, 11); ctx.fillStyle = '#4ade80'; ctx.fillRect(x + 130, y + 24, 6, 6); }
+        if (d.id === 'server') { for (let k = 0; k < 3; k++) { ctx.fillStyle = '#1c2a3c'; ctx.fillRect(x + 20 + k * 60, y + 26, 54, 38); ctx.fillStyle = '#4ade80'; ctx.fillRect(x + 24 + k * 60, y + 30, 5, 5); } }
+        if (d.id === 'ups') { ctx.fillStyle = '#052e1b'; ctx.fillRect(x + 20, y + 26, 92, 38); txt('100%', x + 66, y + 52, { s: 18, a: 'center', c: '#4ade80', f: FONT_H }); for (let k = 0; k < 3; k++) { ctx.fillStyle = '#fbbf24'; ctx.fillRect(x + 130 + k * 24, y + 30, 18, 30); } }
+        ctx.restore();
+    }
+    function drawLink(l) {
+        const A = dotPos(l.a, l.ka), B = dotPos(l.b, l.kb), ex = RX + RW + 26 + l.off, dir = B.y > A.y ? 1 : -1;
+        ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(ex - 8, A.y); ctx.quadraticCurveTo(ex, A.y, ex, A.y + 8 * dir); ctx.lineTo(ex, B.y - 8 * dir); ctx.quadraticCurveTo(ex, B.y, ex - 8, B.y); ctx.lineTo(B.x, B.y);
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = l.power ? 5 : 4; ctx.strokeStyle = l.col; ctx.stroke();
+    }
+    function checkRack() {
+        const s = id => byId(id).slot;
+        const r = [
+            s('ups') < Math.min(s('server'), s('router'), s('sw'), s('patch')),
+            s('server') < Math.min(s('router'), s('sw'), s('patch')),
+            s('patch') > Math.max(s('ups'), s('server'), s('router'), s('sw')),
+            s('sw') > s('router')
+        ];
+        lv.ruleOk = r;
+        if (r.every(Boolean)) { lv.phase = 'cable'; say('Susunan rack benar. Sekarang sambungkan perangkat: klik satu port, lalu klik port di perangkat lain.', 'ok'); }
+        else lv.penalize(10, 'Aturan rack nomor ' + r.map((v, i) => v ? 0 : i + 1).filter(Boolean).join(', ') + ' belum terpenuhi.');
+    }
+    function clickDot(d, k) {
+        if (d.used[k]) { say('Port itu sudah terpakai.', 'info'); return; }
+        if (!lv.sel) { lv.sel = { d, k }; return; }
+        if (lv.sel.d === d) { lv.sel = { d, k }; return; }
+        const a = lv.sel.d, ka = lv.sel.k; lv.sel = null;
+        const key = [a.id, d.id].sort().join('|');
+        const ok = LINKS.some(l => [l[0], l[1]].sort().join('|') === key);
+        if (!ok) {
+            let m = 'Sambungan ' + a.n + ' — ' + d.n + ' tidak ada dalam topologi tugas.';
+            if (key === 'patch|router') m = 'Patch panel tidak langsung ke router; jalurnya lewat switch.';
+            else if (key === 'router|server') m = 'Server terhubung ke switch, bukan langsung ke router.';
+            else if (key.includes('ups')) m = 'Dalam topologi ini UPS hanya menyuplai daya ke server.';
+            lv.penalize(10, m); return;
+        }
+        if (lv.links.some(l => l.key === key)) { say('Sambungan itu sudah dibuat.', 'info'); return; }
+        const power = key === 'server|ups', cols = ['#38bdf8', '#34d399', '#a78bfa'];
+        lv.links.push({ a, ka, b: d, kb: k, key, power, off: 8 + lv.links.length * 12, col: power ? C.warn : cols[lv.links.length % 3] });
+        a.used[ka] = true; d.used[k] = true;
+        if (lv.links.length === 4) { say('Semua perangkat tersambung!', 'ok'); lv.phase = 'cabled'; lv.cAt = performance.now(); }
+        else say('Tersambung: ' + a.n + ' — ' + d.n, 'ok');
+    }
+    lv.draw = function () {
+        lv.tick();
+        if (lv.phase === 'cabled' && performance.now() - lv.cAt > 1300) lv.phase = 'quiz';
+        deskBG(); hud(lv);
+        txt('Perangkat', 20, 80, { s: 15, c: C.mute });
+        for (const d of devs) {
+            if (d.slot == null && !(lv.drag && lv.drag.d === d)) {
+                const r = devRect(d); drawDevice(d, r.x, r.y);
+                if (lv.phase === 'place' && over(r.x, r.y, r.w, r.h)) hoverBtn = true;
+            }
+        }
+        rr(RX - 16, RY - 16, RW + 32, N * U + 32, 10); ctx.fillStyle = '#08111e'; ctx.fill(); ctx.strokeStyle = '#5b6f86'; ctx.lineWidth = 3; ctx.stroke();
+        for (let r = 0; r < N; r++) { const y = RY + r * U; ctx.fillStyle = r % 2 ? '#0f1c2e' : '#122238'; ctx.fillRect(RX, y, RW, U); txt(N - r, RX - 8, y + U / 2 + 4, { s: 10, a: 'center', c: '#5f7389' }); }
+        if (lv.drag && lv.phase === 'place') { const s = snap(lv.drag.d); if (s != null) { const ok = free(lv.drag.d, s); const y = RY + (N - s - lv.drag.d.u) * U; ctx.fillStyle = ok ? 'rgba(52,211,153,.28)' : 'rgba(248,113,113,.3)'; ctx.fillRect(RX, y, RW, lv.drag.d.u * U); } }
+        for (const d of devs) if (d.slot != null) { const r = devRect(d); drawDevice(d, r.x, r.y); }
+        if (lv.phase !== 'place') {
+            lv.links.forEach(drawLink);
+            for (const d of devs) for (let k = 0; k < 3; k++) {
+                const p = dotPos(d, k), sel = lv.sel && lv.sel.d === d && lv.sel.k === k;
+                const hov = lv.phase === 'cable' && Math.hypot(mouse.x - p.x, mouse.y - p.y) < 11; if (hov) hoverBtn = true;
+                ctx.beginPath(); ctx.arc(p.x, p.y, sel ? 8 : 6.5, 0, 6.3); ctx.fillStyle = d.used[k] ? '#e2e8f0' : (sel ? C.acc : '#0a1220'); ctx.fill();
+                ctx.lineWidth = 2; ctx.strokeStyle = sel || hov ? C.acc : C.gold; ctx.stroke();
+            }
+        }
+        if (lv.drag) drawDevice(lv.drag.d, mouse.x - lv.drag.offX, mouse.y - lv.drag.offY, .92);
+        rr(700, 80, 242, 470, 14); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
+        txt('Aturan rack', 718, 112, { s: 20, f: FONT_H, w: 600, c: C.acc });
+        let y = 136;
+        RULES.forEach((t, i) => {
+            const st = lv.ruleOk ? (lv.ruleOk[i] ? 'ok' : 'bad') : 'idle';
+            if (st === 'ok') tickIcon(724, y + 2, 12, C.ok); else if (st === 'bad') crossIcon(724, y + 2, 12, C.bad); else { ctx.beginPath(); ctx.arc(724, y + 2, 4, 0, 6.3); ctx.fillStyle = '#5f7389'; ctx.fill(); }
+            const n = para(t, 742, y + 6, 186, 17, { s: 13, c: st === 'bad' ? '#fca5a5' : C.text }); y += n * 17 + 14;
+        });
+        if (lv.phase === 'place') {
+            const all = devs.every(d => d.slot != null);
+            para(all ? 'Semua perangkat sudah di rack. Periksa susunan.' : 'Seret kelima perangkat ke dalam rack.', 718, y + 16, 206, 18, { s: 13, c: C.mute });
+            btn(716, 494, 210, 44, 'Cek Susunan Rack', checkRack, { color: C.ok, disabled: !all, s: 15 });
+        } else {
+            txt('Sambungan', 718, y + 22, { s: 20, f: FONT_H, w: 600, c: C.acc });
+            LINKS.forEach((l, i) => {
+                const yy = y + 52 + i * 30; const done = lv.links.some(k => k.key === [l[0], l[1]].sort().join('|'));
+                if (done) tickIcon(724, yy - 4, 12, C.ok); else { ctx.beginPath(); ctx.arc(724, yy - 4, 4, 0, 6.3); ctx.fillStyle = '#5f7389'; ctx.fill(); }
+                txt(l[2], 742, yy, { s: 13, c: done ? C.ok : C.text });
+            });
+            para('Klik satu port emas, lalu klik port di perangkat lain untuk memasang kabel.', 718, y + 186, 206, 18, { s: 13, c: C.mute });
+        }
+        if (lv.phase === 'quiz' || (lv.phase === 'fin' && lv.quiz)) drawQuiz(lv);
+    };
+    lv.down = function (p) {
+        if (lv.phase === 'place') {
+            for (let i = devs.length - 1; i >= 0; i--) {
+                const d = devs[i], r = devRect(d);
+                if (inR(p, r)) { lv.drag = { d, offX: p.x - r.x, offY: p.y - r.y, prev: d.slot }; d.slot = null; return; }
+            }
+        } else if (lv.phase === 'cable') {
+            for (const d of devs) for (let k = 0; k < 3; k++) { const q = dotPos(d, k); if (Math.hypot(p.x - q.x, p.y - q.y) < 12) { clickDot(d, k); return; } }
+            lv.sel = null;
+        }
+    };
+    lv.up = function () {
+        if (!lv.drag) return; const d = lv.drag.d, prev = lv.drag.prev;
+        const s = snap(d);
+        if (s != null) {
+            if (free(d, s)) { d.slot = s; lv.ruleOk = null; }
+            else { d.slot = prev; say('Slot bertabrakan dengan perangkat lain.', 'info'); }
+        } else d.slot = null;
+        lv.drag = null;
+    };
+    return lv;
+}
+
+/* ================================================================
+   Daftar level & scene menu
+   ================================================================ */
+const LV = [
+    { t: 'Persiapan Alat & Bahan',                  m: 'Briefing, studi kasus acak, dan pemilihan alat', mk: makeL1 },
+    { t: 'Crimping Straight-Through (T568B)',       m: 'Satu kabel: potong, kupas, susun, crimp, uji',    mk: makeL2 },
+    { t: 'Crimping Crossover (T568A–T568B)',        m: 'Drag dua ujung berbeda, lebih sulit',             mk: () => makeCrimp(3) },
+    { t: 'Pasang ke Patch Panel',                   m: 'Drag kabel ke port, klik punch-down tool',        mk: makeL4 },
+    { t: 'Instalasi Rack Server',                   m: 'Drag semua komponen ke rack, sambungkan',         mk: makeL5 }
+];
+function go(s) { if (scene && scene !== s && scene.exit) scene.exit(); scene = s; toast = null; if (s.enter) s.enter(); }
+function startLevel(i) { if (!(save.teacher || i < save.unlocked)) return; go(LV[i].mk()); }
+
+const menuScene = {
+    draw() {
+        bg(true);
+        txt('NetCrimp', W / 2, 130, { s: 80, f: FONT_H, a: 'center', w: 600, c: C.text });
+        txt('Simulasi instalasi dan pengkabelan jaringan', W / 2, 168, { s: 19, a: 'center', c: C.acc });
+        txt('Media pembelajaran untuk siswa SMK TKJ', W / 2, 192, { s: 14, a: 'center', c: C.mute });
+        btn(W / 2 - 140, 224, 280, 46, 'Mulai bermain', () => go(levelsScene), { s: 18, color: C.acc });
+        btn(W / 2 - 140, 280, 280, 42, 'Cara bermain', () => go(helpScene), { color: '#2b4360', tc: C.text, s: 14 });
+        btn(W / 2 - 140, 330, 280, 42, 'Log hasil', () => go(logScene), { color: '#2b4360', tc: C.text, s: 14 });
+        btn(W / 2 - 140, 380, 280, 42, 'Grafis L2: ' + save.l2.grafis + ' / Suara: ' + (save.l2.sound ? 'ON' : 'OFF'), () => {
+            if (save.l2.grafis === 'hemat') { save.l2.grafis = 'normal'; }
+            else { save.l2.grafis = 'hemat'; }
+            save.l2.sound = !save.l2.sound;
+            persist();
+        }, { color: save.l2.grafis === 'hemat' ? C.warn : '#2b4360', tc: save.l2.grafis === 'hemat' ? '#1a1200' : C.text, s: 12 });
+        if (!nameEl.value.trim()) txt('Isi nama siswa di atas kanvas agar hasil tercatat di log.', W / 2, 430, { s: 13, a: 'center', c: C.warn });
+        const lbY = 456;
+        txt('\U0001f3c6 Papan Peringkat Level 1 & 2', W / 2, lbY, { s: 15, f: FONT_H, a: 'center', c: C.warn });
+        const top5 = (save.board || []).slice(0, 3);
+        const top5b = (save.board2 || []).slice(0, 3);
+        if (!top5.length && !top5b.length) txt('Belum ada skor. Jadilah yang pertama!', W / 2, lbY + 28, { s: 13, a: 'center', c: C.mute });
+        else {
+            top5.forEach((e, i) => { const y = lbY + 24 + i * 20; txt('L1 · ' + (i + 1) + '. ' + (e.nama.length > 16 ? e.nama.slice(0, 15) + '…' : e.nama) + ' — ' + e.skor, W / 2 - 180, y, { s: 12, a: 'center', c: i === 0 ? C.warn : C.text }); });
+            top5b.forEach((e, i) => { const y = lbY + 24 + i * 20; txt('L2 · ' + (i + 1) + '. ' + (e.nama.length > 16 ? e.nama.slice(0, 15) + '…' : e.nama) + ' — ' + e.skor, W / 2 + 180, y, { s: 12, a: 'center', c: i === 0 ? C.warn : C.text }); });
+        }
+    }
+};
+const levelsScene = {
+    draw() {
+        bg(false);
+        txt('Pilih level', W / 2, 72, { s: 38, f: FONT_H, a: 'center', w: 600 });
+        txt('Selesaikan level secara berurutan untuk membuka level berikutnya.', W / 2, 100, { s: 14, a: 'center', c: C.mute });
+        LV.forEach((L, i) => {
+            const x = 36 + i * 180, y = 126, w = 168, h = 328, open = save.teacher || i < save.unlocked;
+            const hov = open && over(x, y, w, h); if (hov) hoverBtn = true;
+            rr(x, y, w, h, 16); ctx.fillStyle = open ? (hov ? '#25405f' : C.panel) : '#111d2c'; ctx.fill(); ctx.strokeStyle = open ? (hov ? C.acc : C.line) : '#1c2a3c'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.beginPath(); ctx.arc(x + w / 2, y + 44, 26, 0, 6.3); ctx.fillStyle = open ? C.acc : '#22344a'; ctx.fill();
+            txt(i + 1, x + w / 2, y + 54, { s: 30, f: FONT_H, a: 'center', c: open ? '#06131f' : '#5f7389', w: 600 });
+            const nl = para(L.t, x + w / 2, y + 100, w - 28, 20, { s: 16, a: 'center', w: 800, c: open ? C.text : '#5f7389' });
+            para(L.m, x + w / 2, y + 100 + nl * 20 + 10, w - 32, 18, { s: 13, a: 'center', c: open ? C.mute : '#485b71' });
+            if (open) {
+                for (let k = 0; k < 3; k++)star(x + w / 2 - 34 + k * 34, y + h - 62, 13, k < (save.stars[i] || 0));
+                txt(save.best[i] ? 'Skor terbaik ' + save.best[i] : 'Belum dimainkan', x + w / 2, y + h - 22, { s: 13, a: 'center', c: C.mute });
+                hit(x, y, w, h, () => startLevel(i));
+            } else lock(x + w / 2, y + h - 50, 1);
+        });
+        btn(36, 486, 120, 44, 'Kembali', () => go(menuScene), { color: '#334155', tc: C.text, s: 15 });
+        btn(170, 486, 140, 44, 'Log hasil', () => go(logScene), { color: '#2b4360', tc: C.text, s: 15 });
+        btn(324, 486, 170, 44, 'Cara bermain', () => go(helpScene), { color: '#2b4360', tc: C.text, s: 15 });
+        btn(W - 300, 486, 264, 44, 'Mode guru: ' + (save.teacher ? 'aktif' : 'mati'), () => { save.teacher = !save.teacher; persist(); }, { color: save.teacher ? C.warn : '#334155', tc: save.teacher ? '#1a1200' : C.text, s: 14 });
+        txt('Mode guru membuka semua level untuk keperluan uji coba atau validasi.', W - 36, 556, { s: 12, a: 'right', c: C.mute });
+    }
+};
+const helpScene = {
+    draw() {
+        bg(false);
+        txt('Cara bermain', W / 2, 68, { s: 38, f: FONT_H, a: 'center', w: 600 });
+        const rows = [
+            ['Level 1', 'Baca briefing dari Pak Andi, lalu buka lemari alat dan ambil alat yang tepat sesuai studi kasus. Ada batas waktu 75 detik, combo bonus, dan kuis di akhir.'],
+            ['Level 2', 'Kerjakan SATU kabel dari awal sampai siap dipakai (PC → switch) dalam adegan 3D. Klik alat di panel kiri/kanan, lalu lakukan gerakan singkat: seret, tahan, atau pilih slot pin.'],
+            ['Level 3', 'Ujung A disusun T568A dan ujung B T568B. Ada batas waktu; contekan mengurangi skor.'],
+            ['Level 4', 'Seret kabel ke port sesuai daftar jalur. Pilih Punch-down Tool, hadapkan bilah ke luar, lalu klik port.'],
+            ['Level 5', 'Seret perangkat ke rack (yang berat di bawah), cek susunan, lalu sambungkan port ke port.']
+        ];
+        rows.forEach((r, i) => {
+            const y = 94 + i * 66; rr(60, y, 840, 58, 12); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 1.5; ctx.stroke();
+            txt(r[0], 80, y + 35, { s: 19, f: FONT_H, c: C.acc, w: 600 }); para(r[1], 170, y + 25, 710, 19, { s: 13.5, c: C.text });
+        });
+        para('Skor awal 100 dan berkurang setiap kesalahan. Tiga bintang untuk skor 85 ke atas, dua bintang 60 ke atas, satu bintang jika level selesai.', 60, 452, 840, 20, { s: 14, c: C.mute });
+        btn(W / 2 - 70, 510, 140, 46, 'Kembali', () => go(menuScene), { color: C.acc });
+    }
+};
+function csv() {
+    const rows = ['waktu,nama,level,skor,bintang,durasi_detik,kesalahan,hasil,kabel_cm,rj45,bantuan,lencana'];
+    save.log.forEach(l => rows.push([new Date(l.ts).toLocaleString('id-ID').replace(/,/g, ''), '"' + String(l.nama).replace(/"/g, '""') + '"', l.level, l.skor, l.bintang, l.durasi, l.salah, l.hasil, l.kabel_cm || 0, l.rj45 || 0, l.bantuan || 0, '"' + String(l.lencana || '-').replace(/"/g, '""') + '"'].join(',')));
+    return rows.join('\n');
+}
+const logScene = {
+    draw() {
+        bg(false);
+        txt('Log hasil', W / 2, 60, { s: 36, f: FONT_H, a: 'center', w: 600 });
+        const cols = [{ h: 'Waktu', x: 40 }, { h: 'Nama', x: 150 }, { h: 'Lv', x: 360 }, { h: 'Skor', x: 410 }, { h: 'Bintang', x: 480 }, { h: 'Durasi', x: 580 }, { h: 'Salah', x: 680 }, { h: 'Hasil', x: 770 }];
+        rr(30, 84, 900, 384, 12); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
+        cols.forEach(c => txt(c.h, c.x, 112, { s: 13, c: C.acc }));
+        const rows = save.log.slice(-12).reverse();
+        if (!rows.length) txt('Belum ada data. Selesaikan satu level untuk mencatat hasil.', W / 2, 280, { s: 16, a: 'center', c: C.mute });
+        rows.forEach((l, i) => {
+            const y = 138 + i * 27; if (i % 2 === 0) { ctx.fillStyle = 'rgba(255,255,255,.04)'; ctx.fillRect(34, y - 18, 892, 26); }
+            const d = new Date(l.ts); const pad = v => String(v).padStart(2, '0');
+            const nm = String(l.nama).length > 26 ? String(l.nama).slice(0, 25) + '…' : l.nama;
+            txt(pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()), 40, y, { s: 13, w: 600 });
+            txt(nm, 150, y, { s: 13, w: 600 }); txt(l.level, 360, y, { s: 13, w: 600 }); txt(l.skor, 410, y, { s: 13, w: 600 });
+            txt('★'.repeat(l.bintang) || '-', 480, y, { s: 13, c: C.warn }); txt(fmt(l.durasi), 580, y, { s: 13, w: 600 }); txt(l.salah, 680, y, { s: 13, w: 600 });
+            txt(l.hasil, 770, y, { s: 13, c: l.hasil === 'Lulus' ? C.ok : C.bad });
+        });
+        btn(30, 490, 130, 44, 'Kembali', () => go(menuScene), { color: '#334155', tc: C.text, s: 15 });
+        btn(176, 490, 190, 44, 'Salin sebagai CSV', () => {
+            if (!save.log.length) { say('Log masih kosong.', 'info'); return; }
+            try { navigator.clipboard.writeText(csv()).then(() => say('Log disalin. Tempel ke Excel atau Google Sheets.', 'ok'), () => say('Browser menolak akses clipboard. Coba buka halaman ini langsung di browser.', 'bad')); }
+            catch (e) { say('Clipboard tidak tersedia di browser ini.', 'bad'); }
+        }, { color: C.ok, s: 14 });
+        btn(W - 200, 490, 170, 44, 'Hapus log', () => { if (logScene.confirm) { save.log = []; persist(); logScene.confirm = false; say('Log dihapus.', 'info'); } else { logScene.confirm = true; say('Tekan Hapus log sekali lagi untuk konfirmasi.', 'bad'); } }, { color: logScene.confirm ? C.bad : '#475569', tc: logScene.confirm ? '#1a0505' : C.text, s: 14 });
+        txt('Menampilkan 12 catatan terbaru dari ' + save.log.length + ' total.', W / 2, 564, { s: 12, a: 'center', c: C.mute });
+    },
+    enter() { logScene.confirm = false; }
+};
+
+/* ---------- loop utama ---------- */
+scene = menuScene;
+function frame() {
+    hoverBtn = false; btns = [];
+    ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    if (shake > .3) { ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake); shake *= .85; } else shake = 0;
+    try { scene.draw(); } catch (e) { console.error(e); }
+    ctx.restore();
+    drawToast();
+    cv.style.cursor = hoverBtn ? 'pointer' : 'default';
+    requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
