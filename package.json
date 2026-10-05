@@ -14,8 +14,9 @@
     "peek": "node tools/peek.mjs",
     "sapu": "node tools/sapu.mjs",
     "probe2": "node tools/probe2.mjs",
+    "geom": "node tools/probe-geom.mjs",
     "asing": "node tools/cari-asing.mjs",
-    "test": "node build.mjs && node tools/verify.mjs && node tools/cari-asing.mjs && node tools/smoke.mjs && node tools/play2.mjs",
+    "test": "node build.mjs && node tools/verify.mjs && node tools/cari-asing.mjs && node tools/smoke.mjs && node tools/play2.mjs && node tools/probe-geom.mjs",
     "level1": "node build.mjs && node build.mjs --open"
   },
   "engines": {
