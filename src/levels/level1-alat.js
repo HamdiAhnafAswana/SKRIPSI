@@ -1,7 +1,7 @@
 // ==========================================================================
 // levels/level1-alat.js
-// Diambil dari netcrimp2.html baris 735-1347. File ini digabung otomatis oleh build.mjs
-// ke dist/netcrimp2.html -- JANGAN diedit langsung di dist/.
+// Diambil dari backup/netcrimp2.ORI.html baris 735-1347. File ini digabung otomatis oleh build.mjs
+// ke index.html -- JANGAN diedit langsung di index.html.
 // ==========================================================================
 
 /* ================================================================

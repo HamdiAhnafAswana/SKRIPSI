@@ -1,7 +1,7 @@
 // ==========================================================================
 // levels/level2-kabel-2d.js
-// File ini digabung otomatis oleh build.mjs ke netcrimp2.html
-// -- JANGAN diedit langsung di netcrimp2.html.
+// File ini digabung otomatis oleh build.mjs ke index.html
+// -- JANGAN diedit langsung di index.html.
 // ==========================================================================
 
 /* ================================================================
@@ -53,17 +53,24 @@ function makeL2() {
     const SBOX = { x: PL.x + 8, y: 384, w: 140, h: 130 };  // panel STATUS 16..156
     const MBOX = { x: PR.x + 8, y: 384, w: 140, h: 130 };  // kartu PESAN  804..944
 
-    /* --- kepala RJ-45: kotak pin + slot + pita angka (semua di dalam badan) --- */
+    /* --- kepala RJ-45: judul -> BARIS NOMOR 1-8 -> 8 slot -> ujung kabel ---
+       Baris nomor dipindah ke ATAS slot (bukan di bawahnya) supaya kabel yang
+       diseret terlihat langsung masuk ke slot tanpa terhalang pita angka.
+       Tinggi kotak PIN tetap 140 (92..232): slot dikecilkan sedikit supaya
+       baris nomor muat di atas tanpa menimpa banner misi maupun ujung kabel.  */
     const PIN = { x: CX - 200, y: AY + 4, w: 400, h: 140 };   // 92..232
-    const HDR_Y = 110;
+    const HDR_Y = 108;                                        // baseline judul kotak
     const SLOT_W = 40, SLOT_GAP = 8;
     const PIN_PADX = (PIN.w - (SLOT_W * 8 + SLOT_GAP * 7)) / 2;   // 12
     const slotX = i => PIN.x + PIN_PADX + i * (SLOT_W + SLOT_GAP);
     const slotCX = i => slotX(i) + SLOT_W / 2;
-    const SLOT_TOP = 116, SLOT_BOT = 180;                    // tinggi slot 64
-    const SLOT_SEAT = 132;                                   // ujung konduktor duduk di sini
-    const CUT_Y = 186;                                       // garis potong (rata ujung)
-    const BAND = { x: slotX(0) - 8, y: 192, w: SLOT_W * 8 + SLOT_GAP * 7 + 16, h: 24 };
+    const SLOT_TOP = 146, SLOT_BOT = 200;                    // tinggi slot 54
+    const SLOT_SEAT = SLOT_TOP + 16;                          // ujung konduktor duduk di sini
+    const CUT_Y = SLOT_BOT + 6;                               // garis potong (rata ujung)
+    const BAND = { x: slotX(0) - 8, y: 120, w: SLOT_W * 8 + SLOT_GAP * 7 + 16, h: 22 };
+    /* Area klik slot: menutup baris nomor DI ATAS + slot + sedikit di bawah,
+       jadi angka 1-8 ikut jadi bagian area klik slotnya. */
+    const SLOT_HIT_T = BAND.y - 4, SLOT_HIT_B = SLOT_BOT + 12;
     const CONN = { x: PIN.x, w: PIN.w, y: AY + 12, h: 144 };   // badan RJ-45 100..244
 
     /* --- kabel --- */
@@ -332,7 +339,7 @@ function makeL2() {
     }
     function l2SlotAt(p) {
         for (let i = 0; i < 8; i++) {
-            if (inR(p, { x: slotX(i) - 7, y: SLOT_TOP - 14, w: SLOT_W + 14, h: (SLOT_BOT - SLOT_TOP) + 26 })) return i;
+            if (inR(p, { x: slotX(i) - 7, y: SLOT_HIT_T, w: SLOT_W + 14, h: SLOT_HIT_B - SLOT_HIT_T })) return i;
         }
         return -1;
     }
@@ -376,7 +383,7 @@ function makeL2() {
     }
     function l2SlotHover(i) {
         return mouse.x >= slotX(i) - 7 && mouse.x <= slotX(i) + SLOT_W + 7 &&
-            mouse.y >= SLOT_TOP - 14 && mouse.y <= SLOT_BOT + 12;
+            mouse.y >= SLOT_HIT_T && mouse.y <= SLOT_HIT_B;
     }
     function l2HoverWire() { return lv.sel || l2LooseAt(mouse); }
 
@@ -571,35 +578,32 @@ function makeL2() {
         const w = CON_W, r = w / 2;
         const c = l2Ctrl(id, now), d = WC[id], st = !!d.st;
         const T = l2Tube(c, r, 26);
-        if (lv.sel === id) {                              // terpilih: halo putih
-            ctx.save();
-            ctx.beginPath();
-            ctx.moveTo(c.p0.x, c.p0.y);
-            ctx.bezierCurveTo(c.p1.x, c.p1.y, c.p2.x, c.p2.y, c.p3.x, c.p3.y);
-            ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.lineWidth = w + 10;
-            ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.stroke();
-            ctx.restore();
-        }
         ctx.save();
         l2Poly(T.pts);
         ctx.fillStyle = st ? '#f6efe0' : d.c;             // belang: krem, polos: warna
+        /* Terpilih: halo putih dipakai sebagai GLOW di luar kabel (shadow),
+           bukan sapuan putih di atas kabel. Kalau kabelnya sendiri dicat putih,
+           warna kabel ikut berubah saat diseret. */
+        if (lv.sel === id) {
+            ctx.shadowColor = 'rgba(255,255,255,.9)';
+            ctx.shadowBlur = 11;
+        }
         ctx.fill();
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
         if (st) {                                          // belang: garis diagonal tebal
             ctx.save();
             l2Poly(T.pts); ctx.clip();
-            let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
-            for (let i = 0; i < T.pts.length; i++) {
-                const q = T.pts[i];
-                if (q.x < x0) x0 = q.x; if (q.x > x1) x1 = q.x;
-                if (q.y < y0) y0 = q.y; if (q.y > y1) y1 = q.y;
-            }
-            const D = (x1 - x0) + (y1 - y0) + 40;
+            /* Jangkar diagonal di TITIK TAMBAT yang TETAP (c.p0), bukan di kotak
+               pembatas kurva yang bentuknya ikut berubah. Kalau jangkarnya ikut
+               bergerak, garis belangnya meloncat-loncat tiap frame sehingga
+               warna kabel terlihat berubah-ubah saat diseret. */
+            const ax = c.p0.x, ay = c.p0.y, G = Math.ceil(MAXLEN) + 90;
             ctx.strokeStyle = d.c;
             ctx.lineWidth = Math.max(6, w * 0.4);          // ~40% lebar kabel
             ctx.beginPath();
-            for (let k = -D; k < D; k += 15) {             // diagonal 45 derajat
-                ctx.moveTo(x0 - 20 + k, y1 + 20);
-                ctx.lineTo(x0 - 20 + k + D, y0 - 20);
+            for (let k = -G; k <= G; k += 15) {            // diagonal 45 derajat
+                ctx.moveTo(ax - G + k, ay + G);
+                ctx.lineTo(ax - G + k + 2 * G, ay - G);
             }
             ctx.stroke();
             ctx.restore();
@@ -705,7 +709,7 @@ function makeL2() {
             let pen = 0;
             for (let s = 0; s < 8; s++) {
                 const ox = Math.min(x + w, slotX(s) + SLOT_W) - Math.max(x, slotX(s));
-                const oy = Math.min(y + h, SLOT_BOT) - Math.max(y, SLOT_TOP);
+                const oy = Math.min(y + h, SLOT_BOT) - Math.max(y, BAND.y);
                 if (ox > 0 && oy > 0) pen += ox * oy;
             }
             const sc = pen * 8 + Math.hypot(tx - (x + w / 2), ty - (y + h / 2));
@@ -1006,10 +1010,10 @@ function makeL2() {
         const st = KAB.trimmed ? 'ujung sudah rata' : 'ujung belum rata';
         const scol = KAB.trimmed ? '#4ade80' : C.warn;
         if (!KAB.conn) {                                  // saat RJ-45 terpasang, chip ini ditutup konektor
-            rr(PIN.x + PIN.w - 130, PIN.y + 5, 114, 19, 9);
+            rr(PIN.x + PIN.w - 130, PIN.y + 3, 114, 18, 9);
             ctx.fillStyle = 'rgba(4,10,20,.85)'; ctx.fill();
             ctx.lineWidth = 1.5; ctx.strokeStyle = scol; ctx.stroke();
-            txt(st, PIN.x + PIN.w - 73, PIN.y + 18, { s: 10.5, a: 'center', c: scol, w: 800 });
+            txt(st, PIN.x + PIN.w - 73, PIN.y + 16, { s: 10.5, a: 'center', c: scol, w: 800 });
         }
         for (let i = 0; i < 8; i++) {
             const id = KAB.slots[i], hot = ordering && !id && l2SlotHover(i);
@@ -1038,18 +1042,28 @@ function makeL2() {
             ctx.restore();
         }
     }
-    /* ---------- pita angka pin (paling atas: selalu terbaca) ---------- */
+    /* ---------- baris nomor pin 1-8, DI ATAS slot ----------
+       Baris ini dipindah dari bawah slot ke atas slot, jadi kabel yang diseret
+       terlihat langsung masuk ke slot. Tiap angka tetap persis di tengah
+       horizontal slotnya (slotCX) dan ikut berubah biru kalau slotnya disorot. */
     function l2BandaPin() {
         if (!KAB.stripped) return;
+        const ordering = curStep().id === 'order' && lv.inBox < 1;
         rr(BAND.x, BAND.y, BAND.w, BAND.h, 6);
         ctx.fillStyle = 'rgba(4,10,20,.95)'; ctx.fill();
         ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(125,165,205,.6)'; ctx.stroke();
         ctx.strokeStyle = 'rgba(125,165,205,.35)'; ctx.lineWidth = 1;
         for (let i = 1; i < 8; i++) {
             const tx = slotX(i) - SLOT_GAP / 2;
-            ctx.beginPath(); ctx.moveTo(tx, BAND.y + 5); ctx.lineTo(tx, BAND.y + BAND.h - 5); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(tx, BAND.y + 4); ctx.lineTo(tx, BAND.y + BAND.h - 4); ctx.stroke();
         }
-        for (let i = 0; i < 8; i++) txt(i + 1, slotCX(i), BAND.y + 17, { s: 14, a: 'center', c: '#eaf2fb', w: 800 });
+        for (let i = 0; i < 8; i++) {
+            const hot = ordering && !KAB.slots[i] && l2SlotHover(i);
+            txt(i + 1, slotCX(i), BAND.y + 15, {
+                s: 14, a: 'center',
+                c: hot ? C.acc : '#eaf2fb', w: 800
+            });
+        }
     }
 
     /* ---------- konektor RJ-45 (badan transparan menutup 8 slot) ---------- */
@@ -1085,12 +1099,13 @@ function makeL2() {
                 ctx.lineWidth = 1; ctx.strokeStyle = '#8a6a10'; ctx.stroke();
             }
         }
-        rr(CONN.x + 12, CONN.y + 10, 62, 19, 6);
+        // Label RJ-45 + status crimping pindah ke BARIS BAWAH slot (slot 146..200),
+        // supaya tidak menimpa baris nomor 1-8 yang sekarang ada di atas slot.
+        rr(CONN.x + 12, CONN.y + CONN.h - 30, 62, 19, 6);
         ctx.fillStyle = 'rgba(4,12,22,.85)'; ctx.fill();
-        txt('RJ-45', CONN.x + 43, CONN.y + 24, { s: 12, a: 'center', c: '#cfe8f7', w: 800 });
-        // Status crimping di bawah pita angka pin (pita berakhir di y=216, badan konektor 100..244)
-        lock(CONN.x + 26, CONN.y + CONN.h - 12, .4);
-        txt(KAB.crimped ? 'TERKUNCI' : 'BELUM DI-CRIMP', CONN.x + 44, CONN.y + CONN.h - 5,
+        txt('RJ-45', CONN.x + 43, CONN.y + CONN.h - 16, { s: 12, a: 'center', c: '#cfe8f7', w: 800 });
+        lock(CONN.x + CONN.w - 152, CONN.y + CONN.h - 12, .4);
+        txt(KAB.crimped ? 'TERKUNCI' : 'BELUM DI-CRIMP', CONN.x + CONN.w - 134, CONN.y + CONN.h - 5,
             { s: 11.5, c: KAB.crimped ? '#4ade80' : C.warn, w: 800 });
         ctx.restore();
     }

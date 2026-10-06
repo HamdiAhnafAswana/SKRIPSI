@@ -1,7 +1,7 @@
 // ==========================================================================
 // core/08-wire-colors.js
-// Diambil dari netcrimp2.html baris 183-201. File ini digabung otomatis oleh build.mjs
-// ke dist/netcrimp2.html -- JANGAN diedit langsung di dist/.
+// Diambil dari backup/netcrimp2.ORI.html baris 183-201. File ini digabung otomatis oleh build.mjs
+// ke index.html -- JANGAN diedit langsung di index.html.
 // ==========================================================================
 
 /* ---------- warna kabel ---------- */

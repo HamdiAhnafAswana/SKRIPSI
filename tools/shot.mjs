@@ -1,7 +1,7 @@
 // ============================================================================
 //  AMBIL TAYAN LAYAR LEVEL 2  --  node tools/shot.mjs [nama-adegan ...]
 //
-//  Menjalankan netcrimp2.html di Chrome headless, MemAIKAN level 2 sampai
+//  Menjalankan index.html di Chrome headless, MemAIKAN level 2 sampai
 //  beberapa titik, lalu menyimpan PNG tiap adegan ke tools/shots/.
 //
 //  Cara kerjanya deterministik: loop rAF game dimatikan dan performance.now
@@ -168,7 +168,7 @@ const SCENES = {
 };
 
 /* ------------------------------------------------------------------ render */
-const game = fs.readFileSync(path.join(ROOT, 'netcrimp2.html'), 'utf8');
+const game = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const EXPORTS = `globalThis.__NC = { W, H, LEVELS, levelTotal, levelList, go, startLevel,
   scene: () => scene, save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
   newFrame: () => { hoverBtn = false; btns = []; } };`;

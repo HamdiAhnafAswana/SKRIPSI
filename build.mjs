@@ -1,13 +1,13 @@
 // ============================================================================
 //  BUILD NetCrimp
 //  Menggabungkan src/ menjadi SATU file HTML yang siap pakai:
-//      netcrimp2.html   (nama & lokasi sama seperti sebelumnya)
+//      index.html   (satu-satunya hasil build di root)
 //
 //  Pakai:   node build.mjs            (atau klik dua kali build.bat)
 //  Opsi:    node build.mjs --open     -> langsung dibuka di browser
-//           node build.mjs --out dist/netcrimp2.html   -> taruh di folder lain
+//           node build.mjs --out dist/index.html   -> taruh di folder lain
 //
-//  ATURAN: file netcrimp2.html di root ini hasil build -- JANGAN diedit
+//  ATURAN: file index.html di root ini hasil build -- JANGAN diedit
 //  langsung, karena akan hilang saat build berikutnya. Edit di src/.
 // ============================================================================
 import fs from 'node:fs';
@@ -22,7 +22,7 @@ const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(n);
 const opt = (n, d) => { const i = argv.indexOf(n); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
 
-const outFile = path.resolve(ROOT, opt('--out', path.join(ROOT, 'netcrimp2.html')));
+const outFile = path.resolve(ROOT, opt('--out', path.join(ROOT, 'index.html')));
 
 // Urutan = urutanevaluated. Core dulu, lalu level, lalu UI.
 const GROUPS = [

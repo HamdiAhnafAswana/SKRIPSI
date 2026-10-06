@@ -4,10 +4,10 @@ Game ini **sudah dipecah per level** supaya mudah di-update, tapi **tetap dijala
 sebagai satu file HTML**.
 
 ```
-netcrimp2.html          <-- INI YANG DIPLAY. Hasil build, jangan diedit langsung.
+index.html            <-- INI YANG DIPLAY. Hasil build, jangan diedit langsung.
                          Buka dengan klik ganda. Bisa dikirim ke siswa apa adanya.
 
-build.bat / build.mjs   <-- penggabung src/ -> netcrimp2.html
+build.bat / build.mjs   <-- penggabung src/ -> index.html
 src/
   template.html             kerangka HTML (CSS, <head>, <body>)
   core/                     infrastruktur bersama semua level
@@ -23,7 +23,7 @@ backup/                  netcrimp2.ORI.html = versi monolit sebelum dipecah
 
 1. Edit file yang mau diubah di `src/` — biasanya di `src/levels/`.
 2. Klik dua kali **`build.bat`** (atau jalankan `node build.mjs`).
-3. Buka `netcrimp2.html` untuk mencoba.
+3. Buka `index.html` untuk mencoba.
 
 Kalau `build.bat` complaining "Node.js tidak ditemukan", unduh Node.js dari
 nodejs.org lalu install sekali saja.
@@ -122,7 +122,7 @@ tadi. Tidak perlu dijalankan lagi.
 
 ## Catatan penting
 
-- **`netcrimp2.html` di root adalah hasil build.** Edit di `src/`, bukan di sana,
+- **`index.html` di root adalah hasil build.** Edit di `src/`, bukan di sana,
   karena perubahan langsung akan hilang saat build berikutnya.
 - **Jangan pakai Notepad bawaan Windows untuk `src/*.js`** — Notepad itu
   menyimpan dengan encoding ANSI dan bisa merusak karakter seperti `→`, `•`,

@@ -152,15 +152,17 @@ function runGame(htmlFile) {
 }
 
 // ------------------------------------------------------------------ main
-const dist = runGame('netcrimp2.html');
+const dist = runGame('index.html');
 console.log('\n== HASIL BUILD (src/ -> dist/) ==');
 dist.lines.forEach(l => console.log('  ' + (l.startsWith('GAGAL') ? 'GAGAL ' : 'OK    ') + l.slice(l.startsWith('GAGAL') ? 8 : 5)));
 
 let diffs = 0;
-// Perilaku yang RESMI berubah karena Level 2 ditulis ulang (2D, tanpa Three.js).
+// Perilaku yang RESMI berubah karena Level 2 ditulis ulang (2D, tanpa Three.js)
+// dan Level 3 ditulis ulang (punya layar pembuka misi crossover).
 const EXPECTED_DIFF = [
   { at: 'registry: level terdaftar', why: 'judul Level 2 kini "Crimping Straight-Through (T568A/T568B)" karena T568A & T568B sama-sama sah' },
   { at: 'level 2 (', why: 'Level 2 langsung phase=play (tidak lagi phase=load menunggu Three.js/WebGL)' },
+  { at: 'level 3 (Crimping Crossover', why: 'Level 3 kini punya layar pembuka "MULAI MISI CROSSOVER" (phase=intro) sebelum masuk phase=play' },
 ];
 if (!argv.includes('--only')) {
   const orig = runGame('backup/netcrimp2.ORI.html');
@@ -181,7 +183,7 @@ if (!argv.includes('--only')) {
 
 const totalFail = dist.fail.length + (argv.includes('--only') ? 0 : 0);
 console.log('\n== RINGKASAN ==');
-console.log('  file diuji : netcrimp2.html' + (argv.includes('--only') ? '' : ' + backup/netcrimp2.ORI.html'));
+console.log('  file diuji : index.html' + (argv.includes('--only') ? '' : ' + backup/netcrimp2.ORI.html'));
 console.log('  gagal      : ' + totalFail);
 console.log('\n==> ' + (totalFail || diffs ? (totalFail ? totalFail + ' UJI GAGAL' : diffs + ' PERILAKU BEDA') : 'SEMUA UJI LULUS & IDENTIK DENGAN ASLI') + '\n');
 process.exit(totalFail || diffs ? 1 : 0);

@@ -7,7 +7,7 @@
 //
 //   1. 8 titik tambat tersebar merata di mulut jaket, urutannya = acak awal
 //   2. titik tambat TIDAK PERNAH bergeser saat diseret / dipasang / ditukar
-//   3. ujung atas mendarat tepat di tengah slot
+//   3. ujung atas mendarat tepat di titik duduk slot (SLOT_SEAT)
 //   4. semua kabel digambar SEBELUM selubung => pangkal tertutup jaket
 //   5. ujung bawah kabel selalu DI DALAM selubung, tidak keluar dari mulut
 //   6. ketebalan kabel konstan di sepanjang kurva
@@ -25,7 +25,7 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const html = fs.readFileSync(path.join(ROOT, 'netcrimp2.html'), 'utf8');
+const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const raw = html.match(/<script>\r?\n([\s\S]*?)\r?\n<\/script>/)[1];
 const EXPORTS = `globalThis.__NC = { LEVELS, levelTotal, levelList, go, startLevel, scene: () => scene,
   save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
@@ -90,7 +90,7 @@ const sandbox = {
 sandbox.globalThis = sandbox;
 win.document = document;
 vm.createContext(sandbox);
-vm.runInContext(js, sandbox, { filename: 'netcrimp2.html' });
+vm.runInContext(js, sandbox, { filename: 'index.html' });
 
 const NC = sandbox.__NC;
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -116,7 +116,10 @@ const PIN = { x: 280, w: 400 }, SLOT_W = 40, SLOT_GAP = 8;
 const PIN_PADX = (PIN.w - (SLOT_W * 8 + SLOT_GAP * 7)) / 2;
 const slotX = i => PIN.x + PIN_PADX + i * (SLOT_W + SLOT_GAP);
 const slotCX = i => slotX(i) + SLOT_W / 2;
-const SLOT_TOP = 116, SLOT_BOT = 180, SLOT_MID = 150, SLOT_SEAT = 132;
+/* Konstanta layout: HARUS sama persis dengan src/levels/level2-kabel-2d.js.
+   BAND_Y = baris nomor 1-8 di atas slot (BAND.y di src). */
+const SLOT_TOP = 146, SLOT_BOT = 200, SLOT_MID = 173, SLOT_SEAT = 162;
+const BAND_Y = 120;
 const BASE_X0 = 396, CON_STEP = 24, CON_W = 18;
 const WIRE_B = 396, ANCHOR_DY = 26, JACKET_X0 = 370, JACKET_X1 = 590;
 const LOOSE_Y = 306;
@@ -212,7 +215,7 @@ async function main() {
     const id = dragToSlot(sc, slotI);
     ok('seret ke slot ' + (slotI + 1) + ' -> semua anchor tetap', snap() === before);
     await advance(700);
-    ok('  ujung atas mendarat tepat di tengah slot ' + (slotI + 1),
+    ok('  ujung atas mendarat tepat di titik duduk slot ' + (slotI + 1),
       Math.abs(KAB.tip[id].x - slotCX(slotI)) < 2 && Math.abs(KAB.tip[id].y - SLOT_SEAT) < 2,
       '(' + KAB.tip[id].x.toFixed(1) + ',' + KAB.tip[id].y.toFixed(1) + ') vs slot (' +
       slotCX(slotI) + ',' + SLOT_SEAT + ')');
@@ -300,7 +303,7 @@ async function main() {
     if (!box) { worst = 1e9; detail = 'label "' + NAMES[id] + '" tidak terdeteksi'; break; }
     for (let s = 0; s < 8; s++) {
       const ox = Math.min(box.x1, slotX(s) + SLOT_W) - Math.max(box.x0, slotX(s));
-      const oy = Math.min(box.y1, SLOT_BOT) - Math.max(box.y0, SLOT_TOP);
+      const oy = Math.min(box.y1, SLOT_BOT) - Math.max(box.y0, BAND_Y);
       if (ox > 0 && oy > 0 && ox * oy > worst) { worst = ox * oy; detail = '"' + NAMES[id] + '" menimpa slot ' + (s + 1); }
     }
   }

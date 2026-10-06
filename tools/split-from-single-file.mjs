@@ -1,14 +1,28 @@
 // ============================================================================
 //  SKRIP SATU-PAKAI (migrasi).
-//  Memotong netcrimp2.html yang monolit menjadi src/ per bagian & per level.
+//  Memotong backup/netcrimp2.ORI.html (monolit) menjadi src/ per bagian & per level.
+//  Monolit asli kini disimpan di backup/netcrimp2.ORI.html; nomor baris di
+//  bawah merujuk file itu, bukan hasil build saat ini.
 //  Jalankan HANYA KALI INI. Setelah itu, pengeditan cukup di src/.
-//    node tools/split-from-single-file.mjs
+//    node tools/split-from-single-file.mjs [--force]
+//  Tanpa --force, skrip menolak menulis kalau src/ sudah berisi file (agar
+//  isi src/ yang sudah diedit tidak tertimpa hasil split).
 // ============================================================================
 import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const SRC_FILE = path.join(ROOT, 'netcrimp2.html');
+const SRC_FILE = path.join(ROOT, 'backup/netcrimp2.ORI.html');
+
+// jangan tertimpa: kalau src/ sudah berisi .js, berhenti kecuali --force
+const SRC_DIR = path.join(ROOT, 'src');
+const sudahAda = fs.existsSync(SRC_DIR) &&
+  fs.readdirSync(SRC_DIR, { recursive: true }).some(f => String(f).endsWith('.js'));
+if (sudahAda && !process.argv.includes('--force')) {
+  console.error('DITOLAK: src/ sudah berisi file .js. Jalankan dengan --force kalau');
+  console.error('memang mau menimpa isi src/ dengan potongan dari ' + path.basename(SRC_FILE) + '.');
+  process.exit(1);
+}
 
 const lines = fs.readFileSync(SRC_FILE, 'utf8').split(/\r?\n/);
 const at = (n) => lines[n - 1];                       // 1-based
@@ -44,7 +58,7 @@ for (const [rel, a, b] of CHUNKS) {
   const dest = path.join(ROOT, rel);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const body = slice(a, b).replace(/\s+$/, '') + '\n';
-  const head = `// ${'='.repeat(74)}\n// ${rel.replace(/^src\//, '')}\n// Diambil dari netcrimp2.html baris ${a}-${b}. File ini digabung otomatis oleh build.mjs\n// ke dist/netcrimp2.html -- JANGAN diedit langsung di dist/.\n// ${'='.repeat(74)}\n\n`;
+  const head = `// ${'='.repeat(74)}\n// ${rel.replace(/^src\//, '')}\n// Diambil dari backup/netcrimp2.ORI.html baris ${a}-${b}. File ini digabung otomatis oleh build.mjs\n// ke index.html -- JANGAN diedit langsung di index.html.\n// ${'='.repeat(74)}\n\n`;
   fs.writeFileSync(dest, head + body, 'utf8');
   console.log('  ' + rel.padEnd(34) + ' baris ' + a + '-' + b + '  (' + body.split('\n').length + ' baris)');
 }

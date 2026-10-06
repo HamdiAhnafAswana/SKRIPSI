@@ -10,13 +10,14 @@
     "verify": "node tools/verify.mjs",
     "smoke": "node tools/smoke.mjs --only",
     "play2": "node tools/play2.mjs",
+    "play3": "node tools/play3.mjs",
     "shot": "node tools/shot.mjs",
     "peek": "node tools/peek.mjs",
     "sapu": "node tools/sapu.mjs",
     "probe2": "node tools/probe2.mjs",
     "geom": "node tools/probe-geom.mjs",
     "asing": "node tools/cari-asing.mjs",
-    "test": "node build.mjs && node tools/verify.mjs && node tools/cari-asing.mjs && node tools/smoke.mjs && node tools/play2.mjs && node tools/probe-geom.mjs",
+    "test": "node build.mjs && node tools/verify.mjs && node tools/cari-asing.mjs && node tools/smoke.mjs && node tools/play2.mjs && node tools/play3.mjs && node tools/probe-geom.mjs",
     "level1": "node build.mjs && node build.mjs --open"
   },
   "engines": {

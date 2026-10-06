@@ -15,7 +15,7 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const html = fs.readFileSync(path.join(ROOT, 'netcrimp2.html'), 'utf8');
+const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const raw = html.match(/<script>\r?\n([\s\S]*?)\r?\n<\/script>/)[1];
 const EXPORTS = `globalThis.__NC = { LEVELS, levelTotal, levelList, go, startLevel, scene: () => scene,
   save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
@@ -56,7 +56,7 @@ const sandbox = {
 sandbox.globalThis = sandbox;
 win.document = document;
 vm.createContext(sandbox);
-vm.runInContext(js, sandbox, { filename: 'netcrimp2.html' });
+vm.runInContext(js, sandbox, { filename: 'index.html' });
 
 const NC = sandbox.__NC;
 const wait = ms => new Promise(r => setTimeout(r, ms));

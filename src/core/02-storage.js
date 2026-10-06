@@ -1,7 +1,7 @@
 // ==========================================================================
 // core/02-storage.js
-// Diambil dari netcrimp2.html baris 46-59. File ini digabung otomatis oleh build.mjs
-// ke dist/netcrimp2.html -- JANGAN diedit langsung di dist/.
+// Diambil dari backup/netcrimp2.ORI.html baris 46-59. File ini digabung otomatis oleh build.mjs
+// ke index.html -- JANGAN diedit langsung di index.html.
 // ==========================================================================
 
 /* ---------- penyimpanan ---------- */
@@ -9,6 +9,7 @@ const KEY = 'netcrimp_v1';
 let save = { unlocked: 1, stars: [0,0,0,0,0], best: [0,0,0,0,0], log: [], teacher: false, board: [], board2: [], badges: [], l2: {} };
 try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && Array.isArray(s.stars)) save = Object.assign(save, s); } catch (e) {}
 if (!Array.isArray(save.board2)) save.board2 = [];
+if (!Array.isArray(save.board3)) save.board3 = [];
 if (!Array.isArray(save.badges)) save.badges = [];
 if (!save.l2 || typeof save.l2 !== 'object') save.l2 = {};
 if (!save.l2.grafis) save.l2.grafis = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || /Android|iPhone|iPad/i.test(navigator.userAgent) ? 'hemat' : 'normal';

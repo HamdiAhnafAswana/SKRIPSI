@@ -1,5 +1,5 @@
 @echo off
-REM Klik dua kali file ini untuk menggabungkan src\ menjadi dist\netcrimp2.html
+REM Klik dua kali file ini untuk menggabungkan src\ menjadi index.html
 cd /d "%~dp0"
 where node >nul 2>nul
 if errorlevel 1 (
