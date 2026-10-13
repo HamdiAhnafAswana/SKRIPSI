@@ -19,7 +19,7 @@
 
    Alur Langkah Lengkap:
      0. Pilih jenis kabel (pilihan ganda skenario: PC ke PC langsung)
-     1. Pakai sarung tangan (toast & proteksi tangan)
+     1. Pakai sarung tangan (animasi tangan memakai sarung; area kerja bersih sebelum & sesudah)
      2. Potong kabel 150 cm (zona hijau + snap)
      3. Kupas jaket Ujung A
      4. Susun Ujung A sebagai T568A (Putih-Hijau, Hijau, dst.)
@@ -103,6 +103,17 @@ function makeL3() {
     const lerp = (a, b, t) => a + (b - a) * t;
     const easeOut = t => 1 - Math.pow(1 - t, 3);
     const easeBack = t => { const u = t - 1; return 1 + 2.70158 * u * u * u + 1.70158 * u * u; };
+
+    /* ---------- SARUNG TANGAN: HANYA SAAT ANIMASI PEMAKAIAN ----------
+       Sama seperti Level 2: area kerja BENAR-BENAR bersih saat level
+       dimulai (tidak ada sprite sarung tergeletak, tidak ada tangan
+       mengambang). Perlengkapan sarung tangan diwakili IKON-nya di panel
+       ALAT. Saat kartu Sarung Tangan diklik, animasi lv.anim 'glove'
+       berjalan dan barulah sebuah tangan digambar di tengah area kerja:
+       dari tangan telanjang (cover=0) menjadi bersarung penuh (cover=1),
+       lalu menghilang. Setelah usai (KAB.glove=true) area kerja kembali
+       bersih. Titik asal HAND = pergelangan tangan (jari mengarah ke atas). */
+    const HAND = { x: CX, y: 348, s: 1.28, rot: -0.08 };
 
     /* ================================================================
        ALUR LANGKAH & INSTRUKSI PEDAGOGIS (PAK ANDI)
@@ -389,14 +400,39 @@ function makeL3() {
     }
 
     /* ================================================================
-       1 — SARUNG TANGAN
-       ================================================================ */
+       1 — SARUNG TANGAN (animasi pemakaian, TANPA objek permanen)
+       ----------------------------------------------------------------
+       Saat level dimulai area kerja BENAR-BENAR bersih: tidak ada sprite
+       sarung maupun tangan. Hanya ketika kartu Sarung Tangan diklik,
+       animasi lv.anim 'glove' berjalan dan menggambar transisi satu
+       tangan: telanjang (cover=0) -> bersarung penuh (cover=1), dengan
+       jari menggenggam sedikit, lalu memudar. Setelah selesai
+       (KAB.glove=true) area kerja kembali bersih. Sama persis dengan
+       Level 2; dipas di dalam draw memakai lv.anim + performance.now(),
+       tanpa rAF baru.                                                  */
+    function l3Tangan(now) {
+        const a = lv.anim;
+        if (!a || a.type !== 'glove') return;     // diam: tidak ada objek apa pun
+        const p = l3AnimP(now, 'glove');
+        const appear = clamp(p / .16, 0, 1);                  // muncul cepat di awal
+        const cover = easeOut(clamp((p - .22) / .46, 0, 1));  // sarung merayap dari ujung jari ke pergelangan
+        const flex = Math.sin(clamp((p - .28) / .44, 0, 1) * Math.PI) * .55;  // jari menggenggam sebentar
+        const out = clamp((p - .86) / .14, 0, 1);             // memudar menjelang akhir
+        ctx.save();
+        ctx.globalAlpha = Math.min(appear, 1 - out);
+        ctx.translate(0, (1 - appear) * 10);                  // naik sedikit saat muncul
+        drawWorkHand(HAND.x, HAND.y, HAND.s, HAND.rot, cover, flex);
+        ctx.restore();
+    }
+    /* Klik kartu Sarung Tangan: animasi 'glove' (1,7 dtk), lalu KAB.glove
+       diset true dan l3Step() memajukan langkah. Penjaga mencegah animasi
+       dobel bila kartu diklik lagi selagi animasi berjalan. */
     function l3ActGlove() {
-        KAB.glove = true;
+        if (KAB.glove || lv.anim) return;
         l3Flash('Sarung tangan HIDUP. Tangan terlindungi dari kawat tembaga tajam.', 'ok');
         say('Sarung tangan HIDUP', 'ok');
         SND.klik();
-        l3Anim('glove', 600, () => l3Step());
+        l3Anim('glove', 1700, () => { KAB.glove = true; l3Step(); });
     }
 
     /* ================================================================
@@ -1235,7 +1271,7 @@ function makeL3() {
             }
             ctx.save(); ctx.globalAlpha = .97;
             ctx.translate(CX, y); ctx.scale(1, 1 - 0.15 * sq);
-            drawSprite('crimp', 0, 0, 260, 0);
+            drawCrimpTool(0, 0, 1, sq, 0);              // gagang menutup & rahang menekan
             ctx.restore();
             if (p > .42 && p < .66) {
                 ctx.save(); ctx.globalAlpha = .6;
@@ -1270,6 +1306,7 @@ function makeL3() {
 
         const cabTop = l3CableTop(now);
         l3UpdateTips(now);
+        l3Tangan(now);         // 0) animasi pakai sarung tangan (hanya saat lv.anim 'glove') paling belakang
         l3KotakPin(now);
         l3Konduktor(now);
         l3Jaket(now, cabTop);
@@ -1459,7 +1496,7 @@ function makeL3() {
        ================================================================ */
     function l3Shade() {
         ctx.fillStyle = 'rgba(3,9,18,.9)'; ctx.fillRect(0, 54, W, H - 54);
-        hit(0, 0, W, H, () => { });
+        hit(0, 54, W, H - 54, () => { });
     }
     function l3Panel(x, y, w, h, stroke) {
         rr(x, y, w, h, 18); ctx.fillStyle = 'rgba(12,23,39,.99)'; ctx.fill();

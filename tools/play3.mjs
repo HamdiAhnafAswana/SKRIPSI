@@ -18,9 +18,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { createGameHTML } from './game-loader.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const html = createGameHTML();
 const raw = html.match(/<script>\r?\n([\s\S]*?)\r?\n<\/script>/)[1];
 const EXPORTS = `globalThis.__NC = { LEVELS, levelTotal, levelList, go, startLevel, scene: () => scene,
   save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
@@ -136,6 +137,7 @@ async function run() {
   console.log('\n== LANGKAH 1: SARUNG TANGAN ==');
   // Kartu Sarung Tangan: panel kiri (x=16..148, y=120..200)
   click(80, 160, 'klik Sarung Tangan');
+  ok('animasi memakai sarung tangan berjalan', !!(lv.anim && lv.anim.type === 'glove'), lv.anim && lv.anim.type);
   await settle(lv);
   ok('sarung tangan aktif', lv.KAB.glove === true);
   ok('langkah maju ke potong kabel', lv.step === 2);

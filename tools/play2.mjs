@@ -13,9 +13,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { createGameHTML } from './game-loader.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const html = createGameHTML();
 const raw = html.match(/<script>\r?\n([\s\S]*?)\r?\n<\/script>/)[1];
 const EXPORTS = `globalThis.__NC = { LEVELS, levelTotal, levelList, go, startLevel, scene: () => scene,
   save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
@@ -187,7 +188,12 @@ async function main() {
   console.log('\n== ALUR UTAMA (klik-klik) ==');
   click(CARD_L(0).x, CARD_L(0).y, '1. klik Sarung Tangan');
   ok('toast "Sarung tangan HIDUP"', !!sc.flash && /Sarung tangan HIDUP/.test(sc.flash.msg), sc.flash && sc.flash.msg);
+  ok('animasi memakai sarung tangan berjalan', !!(sc.anim && sc.anim.type === 'glove'), sc.anim && sc.anim.type);
+  ok('sarung belum terpasang selagi animasi jalan', sc.KAB.glove === false);
+  click(CARD_L(0).x, CARD_L(0).y);                 // klik ulang: tidak boleh dobel
+  ok('klik ulang tidak menjalankan animasi dobel', !!(sc.anim && sc.anim.type === 'glove') && sc.KAB.glove === false);
   await settle(sc); frames(4);
+  ok('sarung tangan terpasang penuh (KAB.glove true)', sc.KAB.glove === true);
   ok('langkah -> Kupas selubung', sc.step === 1, 'step=' + sc.step);
 
   click(CARD_L(1).x, CARD_L(1).y, '2. klik Pengupas Kabel');

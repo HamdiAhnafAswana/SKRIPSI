@@ -1,24 +1,37 @@
 {
   "name": "netcrimp",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "NetCrimp - game edukasi instalasi & pengkabelan jaringan untuk SMK TKJ. Sumber dipecah per level, dibangun menjadi satu file HTML.",
+  "description": "NetCrimp - game edukasi instalasi & pengkabelan jaringan untuk SMK TKJ. React + Vite.",
   "type": "module",
   "scripts": {
-    "build": "node build.mjs",
-    "open": "node build.mjs --open",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "verify": "node tools/verify.mjs",
     "smoke": "node tools/smoke.mjs --only",
     "play2": "node tools/play2.mjs",
     "play3": "node tools/play3.mjs",
+    "play4": "node tools/play4.mjs",
+    "play5": "node tools/play5.mjs",
+    "play4net": "node tools/play4net.mjs",
+
     "shot": "node tools/shot.mjs",
+    "shot4": "node tools/shot4.mjs",
     "peek": "node tools/peek.mjs",
     "sapu": "node tools/sapu.mjs",
     "probe2": "node tools/probe2.mjs",
     "geom": "node tools/probe-geom.mjs",
     "asing": "node tools/cari-asing.mjs",
-    "test": "node build.mjs && node tools/verify.mjs && node tools/cari-asing.mjs && node tools/smoke.mjs && node tools/play2.mjs && node tools/play3.mjs && node tools/probe-geom.mjs",
-    "level1": "node build.mjs && node build.mjs --open"
+    "test": "vite build && node tools/verify.mjs && node tools/cari-asing.mjs && node tools/smoke.mjs && node tools/play2.mjs && node tools/play3.mjs && node tools/play4net.mjs && node tools/play4.mjs && node tools/play5.mjs && node tools/probe-geom.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
   },
   "engines": {
     "node": ">=18"

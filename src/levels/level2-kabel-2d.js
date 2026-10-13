@@ -22,7 +22,7 @@
 
    Alur (satu ujung kabel):
      0. Layar pembuka  -> tujuan level, 6 alat, arti T568B
-     1. Sarung Tangan  -> toast "Sarung tangan HIDUP" (TANPA animasi di area kerja)
+     1. Sarung Tangan  -> animasi tangan memakai sarung (area kerja bersih sebelum & sesudah)
      2. Pengupas Kabel -> sprite pengupas bergerak, 8 konduktor mekar keluar
      3. Susun warna    -> seret / klik konduktor ke slot pin 1-8
      4. Pemotong Kabel-> pilih panjang, sprite gunting meratakan ujung
@@ -108,6 +108,19 @@ function makeL2() {
     const lerp = (a, b, t) => a + (b - a) * t;
     const easeOut = t => 1 - Math.pow(1 - t, 3);
     const easeBack = t => { const u = t - 1; return 1 + 2.70158 * u * u * u + 1.70158 * u * u; };
+
+    /* ---------- SARUNG TANGAN: HANYA SAAT ANIMASI PEMAKAIAN ----------
+       Area kerja sengaja BEBAS dari objek sarung/tangan saat level dimulai:
+       tidak ada sprite sarung tergeletak, tidak ada tangan mengambang.
+       Perlengkapan sarung tangan hanya diwakili IKON-nya di panel ALAT.
+       Saat kartu Sarung Tangan diklik, animasi lv.anim 'glove' berjalan dan
+       barulah sebuah tangan digambar di tengah area kerja: berubah dari
+       tangan telanjang (cover=0) menjadi tangan bersarung penuh (cover=1),
+       lalu menghilang. Begitu animasi usai (KAB.glove=true) tidak ada lagi
+       tangan/sarung yang digambar. Dipas di dalam draw memakai lv.anim +
+       performance.now() yang sudah ada, tanpa rAF/setTimeout baru.
+       Titik asal HAND = pergelangan tangan (jari mengarah ke atas).         */
+    const HAND = { x: CX, y: 342, s: 1.28, rot: -0.08 };
 
     /* ================================================================
        ISI PEMBELAJARAN
@@ -258,14 +271,39 @@ function makeL2() {
     }
 
     /* ================================================================
-       1 — SARUNG TANGAN (hanya toast, tanpa gambar di area kerja)
-       ================================================================ */
+       1 — SARUNG TANGAN (animasi pemakaian, TANPA objek permanen)
+       ----------------------------------------------------------------
+       Saat level dimulai area kerja BENAR-BENAR bersih: tidak ada sprite
+       sarung maupun tangan. Hanya ketika kartu Sarung Tangan diklik,
+       animasi lv.anim 'glove' berjalan dan menggambar transisi satu
+       tangan: telanjang (cover=0) -> bersarung penuh (cover=1), dengan
+       jari menggenggam sedikit, lalu memudar. Setelah selesai
+       (KAB.glove=true) area kerja kembali bersih. Dipas di dalam draw
+       memakai lv.anim + performance.now(); tanpa rAF/setTimeout baru.   */
+    function l2Tangan(now) {
+        const a = lv.anim;
+        if (!a || a.type !== 'glove') return;     // diam: tidak ada objek apa pun
+        const p = l2AnimP(now, 'glove');
+        const appear = clamp(p / .16, 0, 1);                  // muncul cepat di awal
+        const cover = easeOut(clamp((p - .22) / .46, 0, 1));  // sarung merayap dari ujung jari ke pergelangan
+        const flex = Math.sin(clamp((p - .28) / .44, 0, 1) * Math.PI) * .55;  // jari menggenggam sebentar
+        const out = clamp((p - .86) / .14, 0, 1);             // memudar menjelang akhir
+        ctx.save();
+        ctx.globalAlpha = Math.min(appear, 1 - out);
+        ctx.translate(0, (1 - appear) * 10);                  // naik sedikit saat muncul
+        drawWorkHand(HAND.x, HAND.y, HAND.s, HAND.rot, cover, flex);
+        ctx.restore();
+    }
+    /* Klik kartu Sarung Tangan: mulai animasi 'glove' (1,7 dtk).
+       KAB.glove baru diset true saat animasi selesai, lalu l2Step()
+       memajukan ke langkah kupas. Penjaga di awal mencegah animasi dobel
+       kalau kartu diklik lagi selagi animasi berjalan. */
     function l2ActGlove() {
-        KAB.glove = true;
+        if (KAB.glove || lv.anim) return;
         l2Flash('Sarung tangan HIDUP. Tangan aman dari kawat tajam.', 'ok');
         say('Sarung tangan HIDUP', 'ok');
         SND.klik();
-        l2Step();
+        l2Anim('glove', 1700, () => { KAB.glove = true; l2Step(); });
     }
 
     /* ================================================================
@@ -900,6 +938,7 @@ function makeL2() {
 
         const cabTop = l2CableTop(now);
         l2UpdateTips(now);
+        l2Tangan(now);         // 0) animasi pakai sarung tangan (hanya saat lv.anim 'glove') paling belakang
         l2KotakPin(now);
         l2Konduktor(now);      // 1) konduktor digambar paling dulu
         l2Jaket(now, cabTop);  // 2) jaket DI ATAS konduktor: pangkal yang tertanam otomatis tertutup
@@ -1164,7 +1203,7 @@ function makeL2() {
             }
             ctx.save(); ctx.globalAlpha = .97;
             ctx.translate(CX, y); ctx.scale(1, 1 - 0.15 * sq);      // tang terjepit saat ditekan
-            drawSprite('crimp', 0, 0, 260, 0);
+            drawCrimpTool(0, 0, 1, sq, 0);                          // gagang menutup & rahang menekan
             ctx.restore();
             if (p > .42 && p < .66) {                       // kilatan emas saat menekan
                 ctx.save(); ctx.globalAlpha = .6;

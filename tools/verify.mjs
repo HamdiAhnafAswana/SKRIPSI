@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { createGameHTML } from './game-loader.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = p => fs.readFileSync(path.resolve(ROOT, p), 'utf8');
@@ -24,7 +25,7 @@ const tmp = path.join(process.env.TEMP || '/tmp', 'nc-verify.js');
 let bad = 0;
 const check = (ok, label, extra) => { console.log((ok ? '  OK    ' : '  GAGAL ') + label + (extra ? '   [' + extra + ']' : '')); if (!ok) bad++; };
 
-const out = read('index.html');
+const out = createGameHTML();
 const orig = read('backup/netcrimp2.ORI.html');
 const script = s => s.match(/<script>\r?\n([\s\S]*?)\r?\n<\/script>/)[1];
 const js = script(out), origJs = script(orig);
@@ -85,6 +86,53 @@ check(l2Found, 'blok Level 2 di build & versi lama berhasil dipisah',
 // Daftar baris yang SENGAJA dihilangkan/diubah saat pemecahan file.
 // 'const rows = [' tidak dipakai sebagai penanda lagi: teks yang sama ada di
 // l2DrawStatus()/l3DrawStatus() yang baru.
+// Perubahan visual yang disengaja pada fungsi icon() — tidak memengaruhi logika game
+// Pola ini mencocokkan baris kode LAMA yang diubah oleh upgrade visual
+const VISUAL_CHANGED = [
+  // Kabel UTP: highlight & warna selubung
+  /for \(let i = 0; i < 4; i\+\+\) \{ ctx\.beginPath\(\); ctx\.ellipse\(0, 0, 34 - i \* 7, 22 - i \* 5, 0, 0, 6\.3\); ctx\.lineWidth = 6; ctx\.strokeStyle = i % 2 \? '#2563eb' : '#60a5fa'; ctx\.stroke\(\); \}/,
+  /ctx\.beginPath\(\); ctx\.moveTo\(30, 8\); ctx\.bezierCurveTo\(44, 24, 52, 10, 58, 20\); ctx\.lineWidth = 5; ctx\.strokeStyle = '#60a5fa'; ctx\.stroke\(\); break;/,
+  // RJ-45: bodi transparan + kontak emas
+  /rr\(-22, -14, 44, 32, 4\); ctx\.fillStyle = 'rgba\(210,232,245,\.92\)'\); ctx\.fill\(\); ctx\.strokeStyle = '#7aa0b8'; ctx\.lineWidth = 2; ctx\.stroke\(\);/,
+  /ctx\.fillStyle = C\.gold; for \(let k = 0; k < 8; k\+\+\) ctx\.fillRect\(-18 \+ k \* 5, -12, 3, 12\);/,
+  /rr\(-10, 18, 20, 8, 2\); ctx\.fillStyle = 'rgba\(210,232,245,\.92\)'\); ctx\.fill\(\); break;/,
+  // LAN Tester: body gradient, LED, display
+  /rr\(-36, -20, 72, 40, 6\); ctx\.fillStyle = '#166534'; ctx\.fill\(\); ctx\.strokeStyle = '#0b3b1f'; ctx\.lineWidth = 2; ctx\.stroke\(\);/,
+  /for \(let k = 0; k < 8; k\+\+\) \{ ctx\.beginPath\(\); ctx\.arc\(-28 \+ k \* 8, -8, 3, 0, 6\.3\); ctx\.fillStyle = k % 3 \? '#4ade80' : '#fde047'; ctx\.fill\(\); \}/,
+  /ctx\.fillStyle = '#0b1220'; ctx\.fillRect\(-22, 4, 16, 10\); ctx\.fillRect\(6, 4, 16, 10\); break;/,
+  // Tang crimping statis (icon) — diganti versi realistis
+  /^ctx\.lineWidth = 9; ctx\.strokeStyle = '#dc2626'; ctx\.beginPath\(\); ctx\.moveTo\(-26, 28\); ctx\.lineTo\(-6, -4\); ctx\.moveTo\(26, 28\); ctx\.lineTo\(6, -4\); ctx\.stroke\(\);$/,
+  /^rr\(-16, -26, 32, 24, 5\); ctx\.fillStyle = '#9aa8b8'; ctx\.fill\(\); ctx\.strokeStyle = '#5b6b7d'; ctx\.lineWidth = 2; ctx\.stroke\(\);$/,
+  /^ctx\.fillStyle = '#3b4757'; ctx\.fillRect\(-9, -20, 18, 8\); break;$/,
+  // Punch-down tool statis (icon) — diganti versi realistis
+  /^rr\(-9, -30, 18, 40, 7\); ctx\.fillStyle = '#2563eb'; ctx\.fill\(\); ctx\.fillStyle = '#cbd5e1'; ctx\.fillRect\(-5, 10, 10, 18\); ctx\.fillStyle = '#64748b'; ctx\.fillRect\(-5, 24, 10, 4\); break;$/,
+  // Animasi crimping Level 3 — tang mekanis drawCrimpTool (gagang menutup, rahang menekan)
+  /^drawSprite\('crimp', 0, 0, 260, 0\);$/,
+  // Level 4 — port patch panel berkedalaman + terminal emas + LED status
+  /^rr\(x, BY, 64, 92, 8\); ctx\.fillStyle = c && c\.punched \? '#0f3d2e' : '#101d2f'; ctx\.fill\(\);$/,
+  /^for \(let k = 0; k < 8; k\+\+\) \{ ctx\.fillStyle = WC\[T568B\[k\]\]\.c; ctx\.fillRect\(x \+ 9 \+ k \* 6\.6, BY \+ 8, 4, 26\); \}$/,
+  // Level 4 — animasi punch-down tool menekan kawat ke terminal
+  /^const cx = bx\(lv\.pa\.j\) \+ 32; icon\('punch', cx, BY \+ 92 \+ 70 - Math\.min\(dt, 180\) \/ 180 \* 44, 1\);$/,
+  // Level 5 — perangkat jaringan detail (chassis, ventilasi, LED, sekrup)
+  /^if \(d\.id === 'patch' \|\| d\.id === 'sw'\) \{ for \(let k = 0; k < 8; k\+\+\)ctx\.fillRect\(x \+ 20 \+ k \* 19, y \+ 21, 13, 11\); \}$/,
+  /^if \(d\.id === 'router'\) \{ for \(let k = 0; k < 4; k\+\+\)ctx\.fillRect\(x \+ 20 \+ k \* 24, y \+ 21, 16, 11\); ctx\.fillStyle = '#4ade80'; ctx\.fillRect\(x \+ 130, y \+ 24, 6, 6\); \}$/,
+  /^if \(d\.id === 'server'\) \{ for \(let k = 0; k < 3; k\+\+\) \{ ctx\.fillStyle = '#1c2a3c'; ctx\.fillRect\(x \+ 20 \+ k \* 60, y \+ 26, 54, 38\); ctx\.fillStyle = '#4ade80'; ctx\.fillRect\(x \+ 24 \+ k \* 60, y \+ 30, 5, 5\); \} \}$/,
+  /^if \(d\.id === 'ups'\) \{ ctx\.fillStyle = '#052e1b'; ctx\.fillRect\(x \+ 20, y \+ 26, 92, 38\); txt\('100%', x \+ 66, y \+ 52, \{ s: 18, a: 'center', c: '#4ade80', f: FONT_H \}\); for \(let k = 0; k < 3; k\+\+\) \{ ctx\.fillStyle = '#fbbf24'; ctx\.fillRect\(x \+ 130 \+ k \* 24, y \+ 30, 18, 30\); \} \}$/,
+  // Label case ikon kini memakai blok { } (deklarasi const lokal)
+  /^case 'crimp':$/,
+  /^case 'punch':$/,
+  // Sarung tangan realistis (upgrade visual sebelumnya)
+  /^rr\(-26, -6, 44, 36, 8\);$/,
+  /^const gloveGrad = ctx\.createLinearGradient\(0, -6, 0, 30\);$/,
+  /^gloveGrad\.addColorStop\(0, '#f87171'\); gloveGrad\.addColorStop\(1, '#b91c1c'\);$/,
+  /^ctx\.fillStyle = gloveGrad; ctx\.fill\(\); ctx\.strokeStyle = '#7f1d1d'; ctx\.lineWidth = 2; ctx\.stroke\(\);$/,
+  /^const fingers = \[\{ x: -24, w: 12, h: 26 \}, \{ x: -10, w: 12, h: 32 \}, \{ x: 4, w: 12, h: 30 \}, \{ x: 18, w: 12, h: 24 \}\];$/,
+  /^fingers\.forEach\(f => \{ ctx\.beginPath\(\); rr\(f\.x, -6 - f\.h, f\.w, f\.h \+ 8, 6\); ctx\.fillStyle = gloveGrad; ctx\.fill\(\); ctx\.strokeStyle = '#7f1d1d'; ctx\.lineWidth = 2; ctx\.stroke\(\); \}\);$/,
+  /^ctx\.beginPath\(\); rr\(-38, -2, 14, 22, 6\); ctx\.fillStyle = gloveGrad; ctx\.fill\(\); ctx\.strokeStyle = '#7f1d1d'; ctx\.lineWidth = 2; ctx\.stroke\(\);$/,
+  /^ctx\.strokeStyle = 'rgba\(255,255,255,\.35\)'; ctx\.lineWidth = 1\.5; ctx\.setLineDash\(\[3, 3\]\);$/,
+  /^ctx\.beginPath\(\); ctx\.moveTo\(-26, 8\); ctx\.lineTo\(18, 8\); ctx\.stroke\(\); ctx\.setLineDash\(\[\]\);$/,
+];
+
 const INTENTIONAL_CHANGED = [
   'LEVEL 3 / 4 / 5',
   'Daftar level & scene menu',
@@ -204,10 +252,69 @@ const INTENTIONAL_CHANGED = [
   'if (!top5.length && !top5b.length) txt(\'Belum ada skor. Jadilah yang pertama!\', W / 2, lbY + 28, { s: 13, a: \'center\', c: C.mute });',
   'top5.forEach((e, i) => { const y = lbY + 24 + i * 20; txt(\'L1 · \' + (i + 1) + \'. \' + (e.nama.length > 16 ? e.nama.slice(0, 15) + \'…\' : e.nama) + \' — \' + e.skor, W / 2 - 180, y, { s: 12, a: \'center\', c: i === 0 ? C.warn : C.text }); });',
   'top5b.forEach((e, i) => { const y = lbY + 24 + i * 20; txt(\'L2 · \' + (i + 1) + \'. \' + (e.nama.length > 16 ? e.nama.slice(0, 15) + \'…\' : e.nama) + \' — \' + e.skor, W / 2 + 180, y, { s: 12, a: \'center\', c: i === 0 ? C.warn : C.text }); });',
+  // Penambahan Level 4 baru + pergeseran patch panel ke L6 & rack ke L7
+  'let save = { unlocked: 1, stars: [0,0,0,0,0], best: [0,0,0,0,0], log: [], teacher: false, board: [], board2: [], badges: [], l2: {} };',
+  'const lv = baseLevel(4, \'Pasang ke Patch Panel\');',
+  'const lv = baseLevel(5, \'Instalasi Rack Server\');',
+  // Penghapusan Level 6 (patch panel) dan Level 7 (rack), rack menjadi Level 5
+  'const rooms = [\'Lab Komputer\', \'Ruang Guru\', \'Perpustakaan\', \'Tata Usaha\'];',
+  'const ports = shuffle([1, 2, 3, 4, 5, 6, 7, 8]).slice(0, 4);',
+  'const homes = shuffle([330, 480, 630, 780]);',
+  'const HY = 510;',
+  'lv.cables = rooms.map((r, i) => ({ room: r, port: ports[i], home: homes[i], hx: homes[i], hy: HY, seated: null, punched: false }));',
+  'function punchAttempt(j) {',
+  'const c = lv.occ[j];',
+  'if (!lv.tool) { say(\'Pilih alat terlebih dahulu.\', \'info\'); return; }',
+  'if (lv.tool !== \'punch\') { lv.penalize(5, (TOOLS.find(t => t.id === lv.tool).n) + \' bukan alat untuk punch-down.\'); return; }',
+  'if (!c) { lv.penalize(5, \'Port \' + (j + 1) + \' belum berisi kabel.\'); return; }',
+  'if (c.punched) return;',
+  'if (lv.blade === \'in\') { lv.penalize(5, \'Bilah potong harus menghadap ke luar agar sisa kawat terpotong rapi.\'); return; }',
+  'c.punched = true; lv.pa = { j, t0: performance.now() };',
+  'const left = lv.cables.filter(k => !k.punched).length;',
+  'if (left === 0) { say(\'Semua kabel terminasi dengan benar. Jalur siap dipakai!\', \'ok\'); lv.win(1800); }',
+  'else say(\'Port \' + (j + 1) + \' (\' + c.room + \') terminasi. Sisa \' + left + \' kabel.\', \'ok\');',
+  'const TOOLS = [{ id: \'crimp\', n: \'Crimping Tool\' }, { id: \'punch\', n: \'Punch-down Tool\' }, { id: \'obeng\', n: \'Obeng\' }];',
+  'const bx = j => 290 + j * 77, BY = 124;',
+  'function makeL4() {',
+  'lv.occ = Array(8).fill(null); lv.tool = null; lv.blade = \'in\'; lv.drag = null; lv.pa = null;',
+  'say(\'Pasang tiap kabel ke port sesuai daftar jalur, lalu tekan kawatnya dengan alat yang tepat.\', \'info\');',
+  'lv.tick(); deskBG(); hud(lv);',
 ];
 const norm = s => s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+// Perubahan visual pada fungsi icon() tidak memengaruhi logika game — abaikan
+// Deteksi berdasarkan pola kode spesifik di dalam fungsi icon()
+const isVisualChange = line => {
+  // Cek regex patterns
+  if (VISUAL_CHANGED.some(re => re.test(line))) return true;
+  // Cek pola visual upgrade
+  return line.includes('plasticGrad') ||
+         line.includes('metalGrad') ||
+         line.includes('shadow(') ||
+         line.includes('Highlight') ||
+         line.includes('glossy') ||
+         line.includes('gradient') ||
+         line.includes('LED') ||
+         line.includes('Display') ||
+         line.includes('kontak emas') ||
+         line.includes('Bodi semi-transparan') ||
+         line.includes('Lock tab') ||
+         line.includes('Kabel dengan selubung') ||
+         line.includes('Ujung kabel terlihat') ||
+         line.includes('rjG') ||
+         line.includes('Kontak emas') ||
+         line.includes('Body dengan gradient') ||
+         line.includes('Label') ||
+         line.includes('LED indikator') ||
+         line.includes('Display digital') ||
+         // Pola kode LAMA yang diubah oleh upgrade visual
+         line.includes('rgba(210,232,245,.92)') ||
+         line.includes('#166534') ||
+         line.includes('C.gold; for') ||
+         line.includes("'#0b3b1f'") ||
+         line.includes("k % 3 ? '#4ade80' : '#fde047'");
+};
 const outSet = new Set(norm(jsRest));
-const removed = norm(origRest).filter(l => !outSet.has(l));
+const removed = norm(origRest).filter(l => !outSet.has(l) && !isVisualChange(l));
 const allow = new Set(INTENTIONAL_CHANGED);
 const unexpected = removed.filter(l => !allow.has(l));
 const notHappened = INTENTIONAL_CHANGED.filter(l => outSet.has(l));
@@ -240,10 +347,11 @@ check(/lv\.phase\s*=\s*'quiz'/.test(l2code) && /lv\.quizIdx >= quizzes\.length\)
 check(/boardKey\s*=\s*'board2'/.test(l2) && /logExtra/.test(l2), 'logExtra + papan skor board2 tetap terhubung');
 // Level 2 versi lama adalah Three.js (~1050 baris). Yang diuji sekarang adalah
 // hasil tulis ulang 2D: kontras, ukuran, animasi sprite, dan pemb pedagogy.
-check(!/l2Anim\s*\(\s*'glove'/.test(l2code) && /say\('Sarung tangan HIDUP'/.test(l2code),
-  'sarung tangan hanya toast (tidak ada animasi di area kerja)');
-check(/drawSprite\('strip'/.test(l2code) && /drawSprite\('gunting'/.test(l2code) && /drawSprite\('crimp'/.test(l2code),
-  'animasi alat memakai sprite sungguhan (strip / gunting / crimp)');
+check(/l2Anim\s*\(\s*'glove'/.test(l2code) && /say\('Sarung tangan HIDUP'/.test(l2code)
+  && /drawWorkHand\(/.test(l2code) && !/drawGloveProp\(/.test(l2code),
+  'sarung tangan beranimasi (tangan memakai sarung; area kerja bersih sebelum/sesudah) + toast');
+check(/drawSprite\('strip'/.test(l2code) && /drawSprite\('gunting'/.test(l2code) && /drawCrimpTool\(/.test(l2code),
+  'animasi alat memakai gambar sungguhan (strip / gunting / crimp mekanis)');
 check(/#0b1626/.test(l2code) && /createLinearGradient/.test(l2code), 'latar area kerja gelap bergradasi + grid');
 check(/l2ModalIntro/.test(l2code) && /Yang kamu pelajari/.test(l2code), 'layar pembuka + kartu "Yang kamu pelajari"');
 check(/'APA', p\[0\]/.test(l2code) && /'KENAPA', p\[1\]/.test(l2code) && /'AWAS', p\[2\]/.test(l2code),

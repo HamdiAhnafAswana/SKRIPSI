@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { createGameHTML } from './game-loader.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -24,7 +25,7 @@ const opt = (n, d) => { const i = argv.indexOf(n); return i >= 0 && argv[i + 1] 
 
 // ------------------------------------------------------------------ harness
 function runGame(htmlFile) {
-  const html = fs.readFileSync(path.resolve(ROOT, htmlFile), 'utf8');
+  const html = htmlFile === 'index.html' ? createGameHTML() : fs.readFileSync(path.resolve(ROOT, htmlFile), 'utf8');
   const raw = html.match(/<script>\r?\n([\s\S]*?)\r?\n<\/script>/)[1];
 
   // Bukalah internals IIFE supaya bisa diuji (hanya di file uji, bukan di build).
@@ -152,7 +153,8 @@ function runGame(htmlFile) {
 }
 
 // ------------------------------------------------------------------ main
-const dist = runGame('index.html');
+const targetFile = opt('--html', 'index.html');
+const dist = runGame(targetFile); // 'index.html' dibangun dari public/game/ via game-loader
 console.log('\n== HASIL BUILD (src/ -> dist/) ==');
 dist.lines.forEach(l => console.log('  ' + (l.startsWith('GAGAL') ? 'GAGAL ' : 'OK    ') + l.slice(l.startsWith('GAGAL') ? 8 : 5)));
 
@@ -163,14 +165,25 @@ const EXPECTED_DIFF = [
   { at: 'registry: level terdaftar', why: 'judul Level 2 kini "Crimping Straight-Through (T568A/T568B)" karena T568A & T568B sama-sama sah' },
   { at: 'level 2 (', why: 'Level 2 langsung phase=play (tidak lagi phase=load menunggu Three.js/WebGL)' },
   { at: 'level 3 (Crimping Crossover', why: 'Level 3 kini punya layar pembuka "MULAI MISI CROSSOVER" (phase=intro) sebelum masuk phase=play' },
+  { at: 'progres bertahan di localStorage', why: 'game kini 7 level, jadi nilai unlock maksimum berbeda setelah level terakhir diuji' },
 ];
 if (!argv.includes('--only')) {
   const orig = runGame('backup/netcrimp2.ORI.html');
   console.log('\n== BANDINGKAN DENGAN FILE ASLI (monolit) ==');
-  if (orig.lines.length !== dist.lines.length) { console.log('  GAGAL jumlah baris uji beda: ' + orig.lines.length + ' vs ' + dist.lines.length); diffs++; }
-  for (let i = 0; i < Math.max(orig.lines.length, dist.lines.length); i++) {
-    if (orig.lines[i] === dist.lines[i]) { console.log('  SAMA  ' + orig.lines[i].slice(0, 120)); continue; }
-    const a = orig.lines[i] || '', b = dist.lines[i] || '';
+  // Baris uji per-level & registry RESMI berbeda: game kini 7 level (Level 4
+  // baru + Level 5 placeholder), sedangkan monolit lama 5 level. Baris di luar
+  // itu (scene, menang/kalah, kuis, progres) wajib tetap identik.
+  const isLvlLine = l => /^OK  \| level \d+ \(/.test(l) || /^GAGAL \| level \d+ \(/.test(l);
+  const isReg = l => l.includes('registry: level terdaftar');
+  const stable = arr => arr.filter(l => !isLvlLine(l) && !isReg(l));
+  const nOrigLvl = orig.lines.filter(isLvlLine).length, nDistLvl = dist.lines.filter(isLvlLine).length;
+  console.log('  level teruji: asli=' + nOrigLvl + ', split=' + nDistLvl + ' (diharapkan 5 vs 7)');
+  if (nOrigLvl !== 5 || nDistLvl !== 7) { console.log('  GAGAL jumlah level beda dari dugaan'); diffs++; }
+  const A = stable(orig.lines), B = stable(dist.lines);
+  if (A.length !== B.length) { console.log('  GAGAL jumlah baris uji (di luar level/registry) beda: ' + A.length + ' vs ' + B.length); diffs++; }
+  for (let i = 0; i < Math.max(A.length, B.length); i++) {
+    if (A[i] === B[i]) { console.log('  SAMA  ' + (A[i] || '').slice(0, 120)); continue; }
+    const a = A[i] || '', b = B[i] || '';
     const exp = EXPECTED_DIFF.find(e => a.includes(e.at) && b.includes(e.at));
     if (exp) { console.log('  BEDA  (diharapkan) -> ' + exp.why); continue; }
     diffs++;
@@ -178,12 +191,12 @@ if (!argv.includes('--only')) {
     console.log('        asli : ' + a.slice(0, 150));
     console.log('        split: ' + b.slice(0, 150));
   }
-  if (diffs === 0) console.log('\n  ==> PERILAKU SAMA dengan file monolit asli, kecuali yang ditandai "diharapkan".');
+  if (diffs === 0) console.log('\n  ==> PERILAKU SAMA dengan file monolit asli di luar daftar level, kecuali yang ditandai "diharapkan".');
 }
 
 const totalFail = dist.fail.length + (argv.includes('--only') ? 0 : 0);
 console.log('\n== RINGKASAN ==');
-console.log('  file diuji : index.html' + (argv.includes('--only') ? '' : ' + backup/netcrimp2.ORI.html'));
+console.log('  file diuji : ' + targetFile + (argv.includes('--only') ? '' : ' + backup/netcrimp2.ORI.html'));
 console.log('  gagal      : ' + totalFail);
 console.log('\n==> ' + (totalFail || diffs ? (totalFail ? totalFail + ' UJI GAGAL' : diffs + ' PERILAKU BEDA') : 'SEMUA UJI LULUS & IDENTIK DENGAN ASLI') + '\n');
 process.exit(totalFail || diffs ? 1 : 0);

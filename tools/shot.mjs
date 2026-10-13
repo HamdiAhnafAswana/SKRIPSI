@@ -27,6 +27,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createGameHTML } from './game-loader.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'tools', 'shots');
@@ -165,10 +166,20 @@ const SCENES = {
   // toast core (say) menutupi bar bawah selama 4,6 detik; adegan ini menunggu
   // toastnya habis supaya bar Andi bisa diperiksa piksel per piksel
   '18-bar-andi': `mulai(); wait(5000); gloveStrip(); susun(T568B, 8);`,
+  // Adegan animasi sarung tangan (Tahap A-E). wait() memajukan jam palsu.
+  // Area kerja bersih sebelum kartu diklik; begitu kartu Sarung Tangan
+  // ditekan, satu tangan muncul dan berubah: A telanjang, B sarung mulai
+  // masuk dari ujung jari, C hampir penuh, D bersarung penuh, E selesai
+  // (tangan hilang lagi, area kerja bersih).
+  '19-sarung-A-telanjang': `mulai(); tap(...CARD_L(0)); wait(250);`,
+  '20-sarung-B-meraih': `mulai(); tap(...CARD_L(0)); wait(500);`,
+  '21-sarung-C-masuk': `mulai(); tap(...CARD_L(0)); wait(800);`,
+  '22-sarung-D-manset': `mulai(); tap(...CARD_L(0)); wait(1300);`,
+  '23-sarung-E-selesai': `mulai(); tap(...CARD_L(0)); settle();`,
 };
 
 /* ------------------------------------------------------------------ render */
-const game = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const game = createGameHTML();   // game dirakit dari public/game/ (bukan index.html Vite)
 const EXPORTS = `globalThis.__NC = { W, H, LEVELS, levelTotal, levelList, go, startLevel,
   scene: () => scene, save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
   newFrame: () => { hoverBtn = false; btns = []; } };`;

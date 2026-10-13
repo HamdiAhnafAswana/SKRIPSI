@@ -23,9 +23,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { createGameHTML } from './game-loader.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const html = createGameHTML();   // game dirakit dari public/game/ (bukan index.html Vite)
 const raw = html.match(/<script>\r?\n([\s\S]*?)\r?\n<\/script>/)[1];
 const EXPORTS = `globalThis.__NC = { LEVELS, levelTotal, levelList, go, startLevel, scene: () => scene,
   save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
