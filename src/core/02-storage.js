@@ -5,7 +5,7 @@
 // ==========================================================================
 
 /* ---------- penyimpanan ---------- */
-const KEY = 'netcrimp_v1';
+const KEY = 'sinova_v1';
 let save = { unlocked: 1, stars: [0,0,0,0,0], best: [0,0,0,0,0], log: [], teacher: false, board: [], board2: [], badges: [], l2: {} };
 try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && Array.isArray(s.stars)) save = Object.assign(save, s); } catch (e) {}
 if (!Array.isArray(save.board2)) save.board2 = [];

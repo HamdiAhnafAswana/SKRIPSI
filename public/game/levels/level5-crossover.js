@@ -337,11 +337,13 @@ function makeL5() {
         'Pada kondisi tertentu dua komputer perlu berkomunikasi langsung tanpa switch. Karena kedua perangkat memiliki tipe yang sama, diperlukan kabel crossover.',
         'Misi: Hubungkan PC 1 dan PC 2 secara langsung menggunakan kabel crossover, konfigurasi IP, lalu uji koneksi dengan ping.',
         'Perhatikan perbedaan dengan Level 4: PC ke Switch menggunakan Straight-Through, sedangkan PC ke PC menggunakan Crossover. Selamat bekerja!'
-    ];
+    ].filter(function (s) { return s && s.trim() !== ''; });
     lv.briefPage = 0;
     lv.briefShown = 0;
+    lv.tPrev = performance.now();
 
     function drawBrief(now) {
+        while (lv.briefPage < BRIEF_PAGES.length && (!BRIEF_PAGES[lv.briefPage] || BRIEF_PAGES[lv.briefPage].trim() === '')) { lv.briefPage++; lv.briefShown = 0; }
         const t = now / 1000;
         bg(false); hud(lv);
         const AP = { x: 20, y: 70, w: 270, h: 490 };

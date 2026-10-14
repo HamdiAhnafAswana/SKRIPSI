@@ -295,11 +295,13 @@ function makeL4() {
         'Kita memiliki 2 PC dan switch. Tugasmu: menghubungkan kabel straight-through ke port switch, mengkonfigurasi IP, lalu menguji koneksi dengan ping.',
         'Misi: Hubungkan PC 1 dan PC 2 ke switch menggunakan kabel straight-through, konfigurasi jaringan, lalu pastikan koneksi berhasil.',
         'Perhatikan LED link di switch — LED hijau menyala berarti koneksi fisik berhasil. Klik "Ping" untuk menguji koneksi antar PC. Selamat bekerja!'
-    ];
+    ].filter(function (s) { return s && s.trim() !== ''; });
     lv.briefPage = 0;
     lv.briefShown = 0;
+    lv.tPrev = performance.now();
 
     function drawBrief(now) {
+        while (lv.briefPage < BRIEF_PAGES.length && (!BRIEF_PAGES[lv.briefPage] || BRIEF_PAGES[lv.briefPage].trim() === '')) { lv.briefPage++; lv.briefShown = 0; }
         const t = now / 1000;
         bg(false); hud(lv);
         const AP = { x: 20, y: 70, w: 270, h: 490 };

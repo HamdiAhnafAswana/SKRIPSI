@@ -291,15 +291,17 @@ function makeL4() {
        BRIEFING
        ================================================================ */
     const BRIEF_PAGES = [
-        { speaker: 'Andi - Teknisi Senior', text: 'Selamat datang di simulasi penggunaan kabel jaringan.\n\nPada level ini kamu akan menghubungkan komputer ke switch menggunakan kabel Straight-Through.' },
-        { speaker: 'Andi - Teknisi Senior', text: 'Pastikan kabel terpasang dengan benar, cek lampu link, lalu lakukan konfigurasi IP.' },
-        { speaker: 'Andi - Teknisi Senior', text: 'Setelah koneksi aktif, lakukan pengujian ping untuk memastikan jaringan berjalan.' },
-        { speaker: 'Andi - Teknisi Senior', text: 'Jika terjadi masalah, gunakan langkah troubleshooting untuk mencari penyebabnya.' }
-    ];
+        'Halo! Saya Andi. Hari ini kita akan mensimulasikan konfigurasi jaringan dasar di laboratorium komputer.',
+        'Kita memiliki 2 PC dan switch. Tugasmu: menghubungkan kabel straight-through ke port switch, mengkonfigurasi IP, lalu menguji koneksi dengan ping.',
+        'Misi: Hubungkan PC 1 dan PC 2 ke switch menggunakan kabel straight-through, konfigurasi jaringan, lalu pastikan koneksi berhasil.',
+        'Perhatikan LED link di switch — LED hijau menyala berarti koneksi fisik berhasil. Klik "Ping" untuk menguji koneksi antar PC. Selamat bekerja!'
+    ].filter(function (s) { return s && s.trim() !== ''; });
     lv.briefPage = 0;
     lv.briefShown = 0;
+    lv.tPrev = performance.now();
 
     function drawBrief(now) {
+        while (lv.briefPage < BRIEF_PAGES.length && (!BRIEF_PAGES[lv.briefPage] || BRIEF_PAGES[lv.briefPage].trim() === '')) { lv.briefPage++; lv.briefShown = 0; }
         const t = now / 1000;
         bg(false); hud(lv);
         const AP = { x: 20, y: 70, w: 270, h: 490 };
@@ -312,8 +314,7 @@ function makeL4() {
         ctx.fillStyle = 'rgba(56,189,248,.15)'; ctx.fill();
         ctx.strokeStyle = 'rgba(56,189,248,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
         txt('TEKNISI JARINGAN', AP.x + AP.w / 2, AP.y + 36, { s: 11, a: 'center', c: C.acc, w: 800 });
-        const curSlide = BRIEF_PAGES[lv.briefPage];
-        const typing = lv.briefPage < BRIEF_PAGES.length && curSlide && curSlide.text && lv.briefShown < curSlide.text.length;
+        const typing = lv.briefPage < BRIEF_PAGES.length && lv.briefShown < BRIEF_PAGES[lv.briefPage].length;
         drawAndi(AP.x + AP.w / 2, AP.y + 260, 0.86, typing ? 'talk' : 'idle', t);
         rr(AP.x + 30, AP.y + 418, AP.w - 60, 44, 10);
         ctx.fillStyle = 'rgba(56,189,248,.12)'; ctx.fill();
@@ -323,31 +324,26 @@ function makeL4() {
 
         const RP = { x: 306, y: 70, w: 634, h: 490 };
         if (lv.briefPage < BRIEF_PAGES.length) {
-            const slide = BRIEF_PAGES[lv.briefPage];
-            const full = slide.text || '';
-            const shownText = full.slice(0, Math.floor(lv.briefShown));
-            // Hanya tampilkan kotak dialog jika ada teks
-            if (full.length > 0) {
-                rr(RP.x, RP.y, RP.w, RP.h, 18);
-                ctx.fillStyle = C.panel; ctx.fill();
-                ctx.strokeStyle = 'rgba(56,189,248,.5)'; ctx.lineWidth = 2; ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(RP.x, RP.y + 120); ctx.lineTo(RP.x - 18, RP.y + 140); ctx.lineTo(RP.x, RP.y + 160); ctx.closePath();
-                ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = 'rgba(56,189,248,.5)'; ctx.stroke();
-                ctx.beginPath(); ctx.arc(RP.x + 30, RP.y + 30, 15, 0, 6.3); ctx.fillStyle = '#1d4ed8'; ctx.fill();
-                txt('A', RP.x + 30, RP.y + 36, { s: 15, a: 'center', c: '#fff', w: 800 });
-                txt('Andi · Teknisi Senior', RP.x + 54, RP.y + 36, { s: 14, c: C.acc, w: 800 });
-                para(shownText, RP.x + 30, RP.y + 95, RP.w - 60, 28, { s: 18, c: C.text, w: 600 });
-                if (!typing) {
-                    const pulse = 0.5 + 0.5 * Math.sin(t * 4);
-                    txt('Klik untuk melanjutkan', RP.x + RP.w - 30, RP.y + RP.h - 30, { s: 12.5, a: 'right', c: 'rgba(157,178,200,' + (0.5 + 0.5 * pulse).toFixed(2) + ')' });
-                }
-                BRIEF_PAGES.forEach((s, i) => {
-                    if (!s.text) return; // Jangan tampilkan indikator untuk slide kosong
-                    const cx = RP.x + RP.w / 2 - (BRIEF_PAGES.length - 1) * 11 + i * 22;
-                    ctx.beginPath(); ctx.arc(cx, RP.y + RP.h - 22, 5, 0, 6.3);
-                    ctx.fillStyle = i === lv.briefPage ? C.acc : '#2a3a4e'; ctx.fill();
-                });
+            const full = BRIEF_PAGES[lv.briefPage];
+            const shownText = full.slice(0, lv.briefShown);
+            rr(RP.x, RP.y, RP.w, RP.h, 18);
+            ctx.fillStyle = C.panel; ctx.fill();
+            ctx.strokeStyle = 'rgba(56,189,248,.5)'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(RP.x, RP.y + 120); ctx.lineTo(RP.x - 18, RP.y + 140); ctx.lineTo(RP.x, RP.y + 160); ctx.closePath();
+            ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = 'rgba(56,189,248,.5)'; ctx.stroke();
+            ctx.beginPath(); ctx.arc(RP.x + 30, RP.y + 30, 15, 0, 6.3); ctx.fillStyle = '#1d4ed8'; ctx.fill();
+            txt('A', RP.x + 30, RP.y + 36, { s: 15, a: 'center', c: '#fff', w: 800 });
+            txt('Andi · Teknisi Senior', RP.x + 54, RP.y + 36, { s: 14, c: C.acc, w: 800 });
+            para(shownText, RP.x + 30, RP.y + 95, RP.w - 60, 28, { s: 18, c: C.text, w: 600 });
+            if (!typing) {
+                const pulse = 0.5 + 0.5 * Math.sin(t * 4);
+                txt('Klik untuk melanjutkan', RP.x + RP.w - 30, RP.y + RP.h - 30, { s: 12.5, a: 'right', c: 'rgba(157,178,200,' + (0.5 + 0.5 * pulse).toFixed(2) + ')' });
             }
+            BRIEF_PAGES.forEach((_, i) => {
+                const cx = RP.x + RP.w / 2 - (BRIEF_PAGES.length - 1) * 11 + i * 22;
+                ctx.beginPath(); ctx.arc(cx, RP.y + RP.h - 22, 5, 0, 6.3);
+                ctx.fillStyle = i === lv.briefPage ? C.acc : '#2a3a4e'; ctx.fill();
+            });
         } else {
             const x = RP.x + 14, y = RP.y + 10, w = RP.w - 28, h = RP.h - 20;
             rr(x, y, w, h, 20);
@@ -1054,8 +1050,8 @@ function makeL4() {
             lv.t0 = now;
             const dt = Math.min(0.05, (now - lv.tPrev) / 1000);
             lv.tPrev = now;
-            if (lv.briefPage < BRIEF_PAGES.length && BRIEF_PAGES[lv.briefPage].text && lv.briefShown < BRIEF_PAGES[lv.briefPage].text.length) {
-                lv.briefShown = Math.min(BRIEF_PAGES[lv.briefPage].text.length, lv.briefShown + dt * 55);
+            if (lv.briefPage < BRIEF_PAGES.length && lv.briefShown < BRIEF_PAGES[lv.briefPage].length) {
+                lv.briefShown = Math.min(BRIEF_PAGES[lv.briefPage].length, lv.briefShown + dt * 55);
             }
             drawBrief(now); return;
         }
@@ -1092,7 +1088,7 @@ function makeL4() {
 
         if (lv.phase === 'brief') {
             if (lv.briefPage < BRIEF_PAGES.length) {
-                if (BRIEF_PAGES[lv.briefPage].text && lv.briefShown < BRIEF_PAGES[lv.briefPage].text.length) { lv.briefShown = BRIEF_PAGES[lv.briefPage].text.length; }
+                if (lv.briefShown < BRIEF_PAGES[lv.briefPage].length) { lv.briefShown = BRIEF_PAGES[lv.briefPage].length; }
                 else { lv.briefPage++; lv.briefShown = 0; }
             }
             return;

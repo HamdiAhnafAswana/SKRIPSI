@@ -215,7 +215,8 @@ function makeL2() {
     });
 
     lv.KAB = KAB; lv.steps = STEPS; lv.tools = TOOL_INFO; lv.needCm = NEED_CM;
-    lv.phase = 'intro';
+    lv.phase = 'brief';
+    lv.briefPage = 0; lv.briefShown = 0; lv.tPrev = performance.now();
     lv.step = 0; lv.tool = null; lv.anim = null; lv.flash = null; lv.modal = null;
     lv.sel = null; lv.drag = null; lv.inBox = 0;
     lv.test = null; lv.helpFree = 1; lv.helpUntil = 0;
@@ -1555,12 +1556,95 @@ function makeL2() {
     }
 
     /* ================================================================
+       BRIEFING — Andi Slide System (sama seperti Level 4 & 5)
+       ================================================================ */
+    const BRIEF_PAGES = [
+        'Selamat datang di Level 2.\n\nPada level ini kamu akan membuat kabel Straight-Through untuk menghubungkan perangkat jaringan.',
+        'Sebelum melakukan crimping, pahami urutan warna kabel agar koneksi dapat berjalan dengan benar.',
+        'Kamu akan melakukan proses pengupasan kabel, penyusunan warna, pemasangan RJ-45, crimping, dan pengujian.',
+        'Perhatikan setiap langkah karena kesalahan kecil dapat menyebabkan kabel gagal digunakan.'
+    ].filter(function (s) { return s && s.trim() !== ''; });
+
+    function drawBrief(now) {
+        while (lv.briefPage < BRIEF_PAGES.length && (!BRIEF_PAGES[lv.briefPage] || BRIEF_PAGES[lv.briefPage].trim() === '')) { lv.briefPage++; lv.briefShown = 0; }
+        const t = now / 1000;
+        bg(false); hud(lv);
+        const AP = { x: 20, y: 70, w: 270, h: 490 };
+        rr(AP.x, AP.y, AP.w, AP.h, 18);
+        const ag = ctx.createLinearGradient(0, AP.y, 0, AP.y + AP.h);
+        ag.addColorStop(0, '#1b3350'); ag.addColorStop(1, '#0d1a2b');
+        ctx.fillStyle = ag; ctx.fill();
+        ctx.strokeStyle = 'rgba(56,189,248,.35)'; ctx.lineWidth = 2; ctx.stroke();
+        rr(AP.x + 30, AP.y + 18, AP.w - 60, 26, 13);
+        ctx.fillStyle = 'rgba(56,189,248,.15)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(56,189,248,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+        txt('TEKNISI JARINGAN', AP.x + AP.w / 2, AP.y + 36, { s: 11, a: 'center', c: C.acc, w: 800 });
+        const typing = lv.briefPage < BRIEF_PAGES.length && lv.briefShown < BRIEF_PAGES[lv.briefPage].length;
+        drawAndi(AP.x + AP.w / 2, AP.y + 260, 0.86, typing ? 'talk' : 'idle', t);
+        rr(AP.x + 30, AP.y + 418, AP.w - 60, 44, 10);
+        ctx.fillStyle = 'rgba(56,189,248,.12)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(56,189,248,.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+        txt('Andi', AP.x + AP.w / 2, AP.y + 440, { s: 16, a: 'center', w: 800, c: C.text });
+        txt('Teknisi Senior · SMK Nusantara', AP.x + AP.w / 2, AP.y + 455, { s: 10.5, a: 'center', c: C.mute });
+
+        const RP = { x: 306, y: 70, w: 634, h: 490 };
+        if (lv.briefPage < BRIEF_PAGES.length) {
+            const full = BRIEF_PAGES[lv.briefPage];
+            const shownText = full.slice(0, Math.floor(lv.briefShown));
+            rr(RP.x, RP.y, RP.w, RP.h, 18);
+            ctx.fillStyle = C.panel; ctx.fill();
+            ctx.strokeStyle = 'rgba(56,189,248,.5)'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(RP.x, RP.y + 120); ctx.lineTo(RP.x - 18, RP.y + 140); ctx.lineTo(RP.x, RP.y + 160); ctx.closePath();
+            ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = 'rgba(56,189,248,.5)'; ctx.stroke();
+            ctx.beginPath(); ctx.arc(RP.x + 30, RP.y + 30, 15, 0, 6.3); ctx.fillStyle = '#1d4ed8'; ctx.fill();
+            txt('A', RP.x + 30, RP.y + 36, { s: 15, a: 'center', c: '#fff', w: 800 });
+            txt('Andi · Teknisi Senior', RP.x + 54, RP.y + 36, { s: 14, c: C.acc, w: 800 });
+            para(shownText, RP.x + 30, RP.y + 95, RP.w - 60, 28, { s: 18, c: C.text, w: 600 });
+            if (!typing) {
+                const pulse = 0.5 + 0.5 * Math.sin(t * 4);
+                txt('Klik untuk melanjutkan', RP.x + RP.w - 30, RP.y + RP.h - 30, { s: 12.5, a: 'right', c: 'rgba(157,178,200,' + (0.5 + 0.5 * pulse).toFixed(2) + ')' });
+            }
+            BRIEF_PAGES.forEach((_, i) => {
+                const cx = RP.x + RP.w / 2 - (BRIEF_PAGES.length - 1) * 11 + i * 22;
+                ctx.beginPath(); ctx.arc(cx, RP.y + RP.h - 22, 5, 0, 6.3);
+                ctx.fillStyle = i === lv.briefPage ? C.acc : '#2a3a4e'; ctx.fill();
+            });
+        } else {
+            const x = RP.x + 14, y = RP.y + 10, w = RP.w - 28, h = RP.h - 20;
+            rr(x, y, w, h, 20);
+            const cg = ctx.createLinearGradient(0, y, 0, y + h);
+            cg.addColorStop(0, '#1e3a5c'); cg.addColorStop(1, '#132639');
+            ctx.fillStyle = cg; ctx.fill();
+            ctx.strokeStyle = 'rgba(52,211,153,.6)'; ctx.lineWidth = 2; ctx.stroke();
+            txt('MISI', x + w / 2, y + 60, { s: 28, f: FONT_H, a: 'center', c: C.ok, w: 600 });
+            para('Buat kabel Straight-Through: kupas kabel, susun warna T568A/T568B, pasang RJ-45, crimp, lalu uji.', x + 40, y + 100, w - 80, 24, { s: 16, c: C.text, w: 600 });
+            btn(x + w / 2 - 145, y + h - 72, 290, 52, 'Mulai Crimping ▸', () => startPlay(), { s: 18, color: C.ok });
+        }
+    }
+
+    function startPlay() {
+        lv.phase = 'intro';
+        lv.t0 = performance.now();
+        lv.lastAct = performance.now();
+    }
+
+    /* ================================================================
        RENDER
        ================================================================ */
     lv.draw = function () {
         lv.tick();
         const now = performance.now();
         deskBG();
+
+        if (lv.phase === 'brief') {
+            lv.t0 = now;
+            const dt = Math.min(0.05, (now - lv.tPrev) / 1000);
+            lv.tPrev = now;
+            if (lv.briefPage < BRIEF_PAGES.length && lv.briefShown < BRIEF_PAGES[lv.briefPage].length) {
+                lv.briefShown = Math.min(BRIEF_PAGES[lv.briefPage].length, lv.briefShown + dt * 55);
+            }
+            drawBrief(now); return;
+        }
 
         if (lv.phase === 'intro') { l2ModalIntro(); return; }
         hud(lv);
@@ -1600,6 +1684,13 @@ function makeL2() {
 
     lv.down = function (p) {
         lv.lastAct = performance.now();
+        if (lv.phase === 'brief') {
+            if (lv.briefPage < BRIEF_PAGES.length) {
+                if (lv.briefShown < BRIEF_PAGES[lv.briefPage].length) { lv.briefShown = BRIEF_PAGES[lv.briefPage].length; }
+                else { lv.briefPage++; lv.briefShown = 0; }
+            }
+            return;
+        }
         if (!l2Ordering()) return;
         const s = l2SlotAt(p);
         if (s >= 0) {

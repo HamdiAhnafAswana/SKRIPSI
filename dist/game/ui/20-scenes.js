@@ -18,11 +18,9 @@ function startLevel(i) { const L = LEVELS[i]; if (!L) return; if (!(save.teacher
 const menuScene = {
     draw() {
         bg(true);
-        /* Menu utama HANYA menampilkan logo, tombol, log hasil, pengaturan,
-           dan dekorasi jaringan (kabel animasi dari bg(true)). Tidak ada
-           aset sarung tangan / tangan di sini. */
-        txt('NetCrimp', W / 2, 130, { s: 80, f: FONT_H, a: 'center', w: 600, c: C.text });
-        txt('Simulasi instalasi dan pengkabelan jaringan', W / 2, 168, { s: 19, a: 'center', c: C.acc });
+        txt('SINOVA', W / 2, 130, { s: 72, f: FONT_H, a: 'center', w: 600, c: C.text });
+        txt('Simulation Interactive Network Virtual Academy', W / 2, 168, { s: 19, a: 'center', c: C.acc });
+        txt('Simulasi interaktif instalasi dan troubleshooting jaringan komputer', W / 2, 192, { s: 14, a: 'center', c: C.mute });
         txt('Media pembelajaran untuk siswa SMK TKJ', W / 2, 192, { s: 14, a: 'center', c: C.mute });
         btn(W / 2 - 140, 224, 280, 46, 'Mulai bermain', () => go(levelsScene), { s: 18, color: C.acc });
         btn(W / 2 - 140, 280, 280, 42, 'Cara bermain', () => go(helpScene), { color: '#2b4360', tc: C.text, s: 14 });
@@ -35,17 +33,15 @@ const menuScene = {
         }, { color: save.l2.grafis === 'hemat' ? C.warn : '#2b4360', tc: save.l2.grafis === 'hemat' ? '#1a1200' : C.text, s: 12 });
         if (!nameEl.value.trim()) txt('Isi nama siswa di atas kanvas agar hasil tercatat di log.', W / 2, 430, { s: 13, a: 'center', c: C.warn });
         const lbY = 456;
-        txt('🏆 Papan Peringkat Level 1 – 4', W / 2, lbY, { s: 15, f: FONT_H, a: 'center', c: C.warn });
+        txt('🏆 Papan Peringkat Level 1, 2 & 3', W / 2, lbY, { s: 15, f: FONT_H, a: 'center', c: C.warn });
         const top5 = (save.board || []).slice(0, 3);
         const top5b = (save.board2 || []).slice(0, 3);
         const top5c = (save.board3 || []).slice(0, 3);
-        const top5d = (save.board4 || []).slice(0, 3);
-        const lbCols = [[top5, 'L1', -300], [top5b, 'L2', -100], [top5c, 'L3', 100], [top5d, 'L4', 300]];
-        if (!top5.length && !top5b.length && !top5c.length && !top5d.length) txt('Belum ada skor. Jadilah yang pertama!', W / 2, lbY + 28, { s: 13, a: 'center', c: C.mute });
+        if (!top5.length && !top5b.length && !top5c.length) txt('Belum ada skor. Jadilah yang pertama!', W / 2, lbY + 28, { s: 13, a: 'center', c: C.mute });
         else {
-            lbCols.forEach(function (col) {
-                col[0].forEach((e, i) => { const y = lbY + 24 + i * 20; txt(col[1] + ' · ' + (i + 1) + '. ' + (e.nama.length > 12 ? e.nama.slice(0, 11) + '…' : e.nama) + ' — ' + e.skor, W / 2 + col[2], y, { s: 12, a: 'center', c: i === 0 ? C.warn : C.text }); });
-            });
+            top5.forEach((e, i) => { const y = lbY + 24 + i * 20; txt('L1 · ' + (i + 1) + '. ' + (e.nama.length > 12 ? e.nama.slice(0, 11) + '…' : e.nama) + ' — ' + e.skor, W / 2 - 270, y, { s: 12, a: 'center', c: i === 0 ? C.warn : C.text }); });
+            top5b.forEach((e, i) => { const y = lbY + 24 + i * 20; txt('L2 · ' + (i + 1) + '. ' + (e.nama.length > 12 ? e.nama.slice(0, 11) + '…' : e.nama) + ' — ' + e.skor, W / 2, y, { s: 12, a: 'center', c: i === 0 ? C.warn : C.text }); });
+            top5c.forEach((e, i) => { const y = lbY + 24 + i * 20; txt('L3 · ' + (i + 1) + '. ' + (e.nama.length > 12 ? e.nama.slice(0, 11) + '…' : e.nama) + ' — ' + e.skor, W / 2 + 270, y, { s: 12, a: 'center', c: i === 0 ? C.warn : C.text }); });
         }
     }
 };

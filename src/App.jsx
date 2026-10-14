@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './styles/global.css';
+import WelcomeScreen from './components/WelcomeScreen';
+import Tutorial from './components/Tutorial';
+import IdentityForm from './components/IdentityForm';
+import Dashboard from './components/Dashboard';
 
 const GAME_SCRIPTS = [
   '/game/core/00-registry.js',
@@ -27,11 +31,21 @@ const GAME_SCRIPTS = [
 
 export default function App() {
   const [gameReady, setGameReady] = useState(false);
+  const [screen, setScreen] = useState('welcome');
+  const [student, setStudent] = useState(null);
   const canvasRef = useRef(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const saved = localStorage.getItem('sinova_student');
+    if (saved) {
+      try { setStudent(JSON.parse(saved)); } catch (e) { /* ignore */ }
+    }
+    const tutorialDone = localStorage.getItem('sinova_tutorial_completed');
+    if (tutorialDone === 'true' && saved) {
+      setScreen('dashboard');
+    }
 
+    let cancelled = false;
     async function loadGame() {
       try {
         for (const src of GAME_SCRIPTS) {
@@ -49,18 +63,51 @@ export default function App() {
         console.error('Gagal memuat game engine:', e);
       }
     }
-
     loadGame();
     return () => { cancelled = true; };
   }, []);
 
+  const handleTutorialComplete = () => {
+    localStorage.setItem('sinova_tutorial_completed', 'true');
+    setScreen('identity');
+  };
+
+  const handleIdentitySubmit = (data) => {
+    setStudent(data);
+    setScreen('dashboard');
+  };
+
+  const handleNavigate = (target) => {
+    if (target === 'levels') {
+      if (window.__NC && window.__NC.go) {
+        window.__NC.go(window.__NC.scenes.levelsScene);
+      }
+      setScreen('game');
+    }
+  };
+
+  if (screen === 'welcome') {
+    return <WelcomeScreen onStart={() => setScreen('tutorial')} onSkip={() => setScreen('identity')} />;
+  }
+
+  if (screen === 'tutorial') {
+    return <Tutorial onComplete={handleTutorialComplete} />;
+  }
+
+  if (screen === 'identity') {
+    return <IdentityForm onSubmit={handleIdentitySubmit} />;
+  }
+
+  if (screen === 'dashboard' && student) {
+    return <Dashboard student={student} onNavigate={handleNavigate} />;
+  }
+
   return (
     <div className="app">
       <header className="app-header">
-        <h1>NetCrimp</h1>
-        <p>Game edukasi instalasi &amp; pengkabelan jaringan untuk siswa SMK TKJ</p>
+        <h1>SINOVA</h1>
+        <p>Simulation Interactive Network Virtual Academy</p>
       </header>
-
       <main className="app-main">
         <div className="game-container">
           <canvas
@@ -68,12 +115,12 @@ export default function App() {
             id="c"
             width={960}
             height={600}
-            aria-label="Area permainan NetCrimp"
+            aria-label="Area simulasi SINOVA"
           />
           <input id="nama" type="text" maxLength={30} placeholder="Isi sebelum bermain" autoComplete="off" />
         </div>
-        {!gameReady && <div className="loading">Memuat game engine...</div>}
-        <p className="note">Kontrol: seret dan lepas dengan mouse atau sentuhan. Progres dan log hasil tersimpan di browser ini.</p>
+        {!gameReady && <div className="loading">Memuat SINOVA...</div>}
+        <p className="note">Simulasi interaktif instalasi dan troubleshooting jaringan komputer</p>
       </main>
     </div>
   );
