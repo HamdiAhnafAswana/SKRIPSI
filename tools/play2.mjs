@@ -134,8 +134,16 @@ function mulaiLevel() {
   NC.startLevel(1);
   const s = NC.scene();
   frame();
+  lewatiBriefing();
   click(INTRO_MULAI.x, INTRO_MULAI.y);
   return s;
+}
+
+/** Lewati briefing Andi Level 2 (slide -> tombol Mulai Crimping). */
+function lewatiBriefing() {
+  const sc = NC.scene();
+  for (let i = 0; i < 40 && sc.phase === 'brief'; i++) click(623, 504);
+  return sc.phase;
 }
 
 /** Susun 8 slot sesuai standar, pakai klik-klik (klik wire lalu klik slot). */
@@ -178,6 +186,10 @@ async function main() {
   ok('skor mulai 100', sc.score === 100, 'skor=' + sc.score);
   ok('lv.quizzes tersedia untuk kuis', Array.isArray(sc.quizzes) && sc.quizzes.length >= 1, sc.quizzes.length + ' soal');
   ok('lv.idx menunjuk level 2 (tombol Ulangi)', sc.idx === 1);
+
+  console.log('\n== BRIEFING ANDI ==');
+  ok('briefing tampil sebelum gameplay', sc.phase === 'brief', 'phase=' + sc.phase);
+  lewatiBriefing();
 
   console.log('\n== LAYAR PEMBUKA ==');
   ok('level dibuka di layar pembuka', sc.phase === 'intro', 'phase=' + sc.phase);

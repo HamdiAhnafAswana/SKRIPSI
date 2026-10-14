@@ -1,8 +1,8 @@
 {
-  "name": "sinova",
+  "name": "netcrimp",
   "version": "2.0.0",
   "private": true,
-  "description": "SINOVA - Simulation Interactive Network Virtual Academy. Game edukasi instalasi & pengkabelan jaringan untuk SMK TKJ. React + Vite.",
+  "description": "NetCrimp - game edukasi instalasi & pengkabelan jaringan untuk SMK TKJ. React + Vite.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "play4": "node tools/play4.mjs",
     "play5": "node tools/play5.mjs",
     "play4net": "node tools/play4net.mjs",
+
     "shot": "node tools/shot.mjs",
     "shot4": "node tools/shot4.mjs",
     "peek": "node tools/peek.mjs",

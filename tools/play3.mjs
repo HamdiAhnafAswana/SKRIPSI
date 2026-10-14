@@ -98,6 +98,13 @@ function click(x, y, label) {
 
 const PIN_SLOT_CX = i => (480 - 200) + 12 + i * 48 + 20;
 
+/** Lewati briefing Andi Level 3 (slide -> tombol Mulai Crimping). */
+function lewatiBriefing() {
+  const lv = NC.scene();
+  for (let i = 0; i < 40 && lv.phase === 'brief'; i++) click(623, 504);
+  return lv.phase;
+}
+
 async function run() {
   console.log('== KONTRAK & INISIALISASI LEVEL 3 ==');
   NC.save.teacher = true;
@@ -112,6 +119,10 @@ async function run() {
     typeof lv.exit === 'function' && typeof lv.makeResult === 'function');
   ok('skor mulai 100', lv.score === 100);
   ok('bank kuis terisi 4 soal acak', Array.isArray(lv.quizzes) && lv.quizzes.length === 4);
+
+  console.log('\n== BRIEFING ANDI ==');
+  ok('briefing tampil sebelum gameplay', lv.phase === 'brief', 'phase=' + lv.phase);
+  lewatiBriefing();
 
   console.log('\n== LAYAR PEMBUKA ==');
   frame();

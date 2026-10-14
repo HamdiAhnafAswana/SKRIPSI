@@ -192,7 +192,9 @@ async function main() {
   };
 
   NC.save.teacher = true; NC.save.unlocked = 5;
-  NC.startLevel(1); frame(); click(INTRO_MULAI.x, INTRO_MULAI.y);
+  NC.startLevel(1); frame();
+  for (let i = 0; i < 40 && NC.scene().phase === 'brief'; i++) click(623, 504);
+  click(INTRO_MULAI.x, INTRO_MULAI.y);
   const sc = NC.scene();
   KAB = sc.KAB;
   await settle(sc); frames(2);
