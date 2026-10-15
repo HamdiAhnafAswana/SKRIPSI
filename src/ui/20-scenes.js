@@ -18,8 +18,8 @@ function startLevel(i) { const L = LEVELS[i]; if (!L) return; if (!(save.teacher
 const menuScene = {
     draw() {
         bg(true);
-        txt('NetCrimp', W / 2, 130, { s: 80, f: FONT_H, a: 'center', w: 600, c: C.text });
-        txt('Simulasi instalasi dan pengkabelan jaringan', W / 2, 168, { s: 19, a: 'center', c: C.acc });
+        txt('SINOVA', W / 2, 130, { s: 80, f: FONT_H, a: 'center', w: 600, c: C.text });
+        txt('Simulation Interactive Network Virtual Academy', W / 2, 168, { s: 19, a: 'center', c: C.acc });
         txt('Media pembelajaran untuk siswa SMK TKJ', W / 2, 192, { s: 14, a: 'center', c: C.mute });
         btn(W / 2 - 140, 224, 280, 46, 'Mulai bermain', () => go(levelsScene), { s: 18, color: C.acc });
         btn(W / 2 - 140, 280, 280, 42, 'Cara bermain', () => go(helpScene), { color: '#2b4360', tc: C.text, s: 14 });

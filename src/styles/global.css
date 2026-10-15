@@ -117,3 +117,437 @@ body {
   font-size: 16px;
   color: var(--muted);
 }
+
+/* ============================================================
+   SINOVA onboarding — welcome / tutorial / form identitas
+   Tema sengaja dibuat gelap (dark blue cyber) agar konsisten
+   dengan kanvas game, terlepas dari light/dark mode sistem.
+   ============================================================ */
+
+.sinova-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+  color: #eaf2fb;
+  font-family: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background:
+    radial-gradient(1100px 560px at 50% -10%, #14314f 0%, rgba(20, 49, 79, 0) 60%),
+    radial-gradient(760px 520px at 100% 110%, #0e2a44 0%, rgba(14, 42, 68, 0) 55%),
+    #070f1a;
+}
+
+.sinova-card {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  margin: auto;
+  padding: 28px 28px 24px;
+  border-radius: 22px;
+  border: 1px solid #24425f;
+  background: linear-gradient(180deg, #10203a 0%, #0b1626 100%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55), 0 0 0 1px rgba(56, 189, 248, .06) inset;
+  animation: sinova-pop .28s ease-out;
+}
+
+@keyframes sinova-pop {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.sinova-logo {
+  display: block;
+  margin: 0 auto 12px;
+  filter: drop-shadow(0 8px 20px rgba(56, 189, 248, .25));
+}
+
+.sinova-logo-sm {
+  width: 64px;
+  margin-bottom: 8px;
+}
+
+/* ---------- welcome ---------- */
+
+.sinova-welcome {
+  text-align: center;
+}
+
+.sinova-wordmark {
+  margin: 0;
+  font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 44px;
+  letter-spacing: 3px;
+  background: linear-gradient(180deg, #eaf6ff 0%, #7dd3fc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.sinova-fullname {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  color: #38bdf8;
+}
+
+.sinova-tagline {
+  max-width: 460px;
+  margin: 12px auto 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #9db2c8;
+}
+
+.sinova-welcome-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 22px 0 24px;
+  text-align: left;
+}
+
+.sinova-andi {
+  flex: 0 0 auto;
+  border-radius: 22px;
+}
+
+.sinova-bubble {
+  position: relative;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #24425f;
+  background: #14263f;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #dbe7f4;
+}
+
+.sinova-bubble::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 26px;
+  width: 14px;
+  height: 14px;
+  background: #14263f;
+  border-left: 1px solid #24425f;
+  border-bottom: 1px solid #24425f;
+  transform: rotate(45deg);
+}
+
+.sinova-bubble b {
+  color: #38bdf8;
+}
+
+/* ---------- buttons ---------- */
+
+.sinova-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.sinova-actions-inline {
+  justify-content: flex-end;
+}
+
+.sinova-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform .12s ease, background .15s ease, box-shadow .15s ease;
+}
+
+.sinova-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.sinova-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.sinova-btn-primary {
+  background: linear-gradient(180deg, #38bdf8 0%, #0ea5e9 100%);
+  color: #06131f;
+  box-shadow: 0 10px 24px rgba(56, 189, 248, .3);
+}
+
+.sinova-btn-ghost {
+  background: #1a2c44;
+  color: #cfe2f5;
+  border-color: #2b4360;
+}
+
+.sinova-btn-ghost:hover:not(:disabled) {
+  background: #21364f;
+}
+
+.sinova-btn-sm {
+  padding: 9px 14px;
+  font-size: 13px;
+}
+
+.sinova-btn-block {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* ---------- tutorial ---------- */
+
+.sinova-tutorial {
+  max-width: 720px;
+}
+
+.sinova-tut-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.sinova-tut-badge {
+  font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  color: #06131f;
+  background: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 100%);
+}
+
+.sinova-tut-count {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #9db2c8;
+}
+
+.sinova-tut-body {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-height: 230px;
+}
+
+.sinova-tut-andi {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sinova-tut-content {
+  flex: 1 1 auto;
+  animation: sinova-fade .25s ease-out;
+}
+
+@keyframes sinova-fade {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.sinova-tut-title {
+  margin: 0 0 8px;
+  font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 22px;
+  color: #eaf6ff;
+}
+
+.sinova-tut-intro {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.sinova-points {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sinova-points li {
+  position: relative;
+  padding: 5px 0 5px 22px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #dbe7f4;
+}
+
+.sinova-points li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, .6);
+}
+
+.sinova-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.sinova-chip {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid #2b4360;
+  background: #14263f;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #cfe2f5;
+}
+
+.sinova-tut-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #1e3450;
+}
+
+.sinova-dots {
+  display: flex;
+  gap: 7px;
+}
+
+.sinova-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #2b4360;
+  transition: background .15s ease, transform .15s ease;
+}
+
+.sinova-dot.is-active {
+  background: #38bdf8;
+  transform: scale(1.15);
+}
+
+/* ---------- form identitas ---------- */
+
+.sinova-form {
+  max-width: 440px;
+  text-align: center;
+}
+
+.sinova-form-title {
+  margin: 4px 0 2px;
+  font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 26px;
+  color: #eaf6ff;
+}
+
+.sinova-form-sub {
+  margin: 0 0 20px;
+  font-size: 13.5px;
+  color: #9db2c8;
+}
+
+.sinova-field {
+  display: block;
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.sinova-field > span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #bcd0e6;
+}
+
+.sinova-field input,
+.sinova-field select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 11px;
+  border: 1px solid #2b4360;
+  background: #0d1a2c;
+  color: #eaf2fb;
+  font-family: inherit;
+  font-size: 15px;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.sinova-field input::placeholder {
+  color: #6a8099;
+}
+
+.sinova-field input:focus,
+.sinova-field select:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, .18);
+}
+
+.sinova-error {
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(248, 113, 113, .12);
+  border: 1px solid rgba(248, 113, 113, .45);
+  color: #fca5a5;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ---------- responsif ---------- */
+
+@media (max-width: 620px) {
+  .sinova-card {
+    padding: 22px 18px 18px;
+    border-radius: 18px;
+  }
+  .sinova-wordmark {
+    font-size: 34px;
+  }
+  .sinova-welcome-row {
+    flex-direction: column;
+    text-align: center;
+  }
+  .sinova-bubble::before {
+    display: none;
+  }
+  .sinova-tut-body {
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+  }
+  .sinova-tut-andi {
+    display: none;
+  }
+  .sinova-tut-foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .sinova-actions-inline {
+    justify-content: stretch;
+  }
+  .sinova-actions-inline .sinova-btn {
+    flex: 1 1 auto;
+  }
+}

@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" role="img" aria-label="Andi, pemandu SINOVA">
+  <defs>
+    <linearGradient id="andiVest" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22456e"/>
+      <stop offset="1" stop-color="#122238"/>
+    </linearGradient>
+    <linearGradient id="andiCap" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7dd3fc"/>
+      <stop offset="1" stop-color="#0ea5e9"/>
+    </linearGradient>
+    <radialGradient id="andiHalo" cx="50%" cy="40%" r="62%">
+      <stop offset="0" stop-color="#1b3a5c"/>
+      <stop offset="1" stop-color="#0b1626"/>
+    </radialGradient>
+  </defs>
+
+  <rect x="6" y="10" width="188" height="220" rx="36" fill="url(#andiHalo)" stroke="#24425f" stroke-width="2"/>
+
+  <!-- torso / rompi -->
+  <path d="M48 236 v-40 c0-26 23-40 52-40 s52 14 52 40 v40 z" fill="url(#andiVest)"/>
+  <line x1="100" y1="160" x2="100" y2="236" stroke="#38bdf8" stroke-width="3" stroke-dasharray="6 6" stroke-linecap="round"/>
+  <path d="M84 154 l16 20 l16-20 l-10-6 h-12 z" fill="#38bdf8" opacity=".85"/>
+  <rect x="60" y="196" width="32" height="24" rx="5" fill="#0f1c2e" stroke="#38bdf8" stroke-width="2"/>
+  <rect x="108" y="196" width="32" height="24" rx="5" fill="#0f1c2e" stroke="#38bdf8" stroke-width="2"/>
+
+  <!-- leher -->
+  <rect x="88" y="126" width="24" height="30" rx="10" fill="#e6b189"/>
+
+  <!-- kepala -->
+  <circle cx="100" cy="96" r="46" fill="#f2c9a0"/>
+  <circle cx="56" cy="98" r="9" fill="#f2c9a0"/>
+  <circle cx="144" cy="98" r="9" fill="#f2c9a0"/>
+
+  <!-- topi -->
+  <path d="M52 90 c0-31 22-50 48-50 s48 19 48 50 z" fill="url(#andiCap)"/>
+  <rect x="46" y="84" width="108" height="12" rx="6" fill="#0ea5e9"/>
+  <circle cx="100" cy="46" r="7" fill="#0b1626" opacity=".22"/>
+
+  <!-- rambut -->
+  <path d="M56 86 c-5 14 0 23 6 30 l-9-5 z" fill="#3b2a20"/>
+  <path d="M144 86 c5 14 0 23 -6 30 l9-5 z" fill="#3b2a20"/>
+
+  <!-- kacamata -->
+  <g fill="#0b1626" stroke="#0f1c2e" stroke-width="3.5">
+    <circle cx="82" cy="98" r="15"/>
+    <circle cx="118" cy="98" r="15"/>
+  </g>
+  <line x1="97" y1="98" x2="103" y2="98" stroke="#0f1c2e" stroke-width="3.5"/>
+  <!-- mata -->
+  <circle cx="82" cy="98" r="5" fill="#7dd3fc"/>
+  <circle cx="118" cy="98" r="5" fill="#7dd3fc"/>
+  <!-- alis -->
+  <path d="M72 76 q10-6 20 0" fill="none" stroke="#3b2a20" stroke-width="4" stroke-linecap="round"/>
+  <path d="M108 76 q10-6 20 0" fill="none" stroke="#3b2a20" stroke-width="4" stroke-linecap="round"/>
+  <!-- senyum -->
+  <path d="M86 122 q14 12 28 0" fill="none" stroke="#a9552f" stroke-width="4" stroke-linecap="round"/>
+</svg>

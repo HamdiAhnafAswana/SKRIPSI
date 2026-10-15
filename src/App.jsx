@@ -1,5 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './styles/global.css';
+import SinovaWelcome from './components/SinovaWelcome.jsx';
+import SinovaTutorial from './components/SinovaTutorial.jsx';
+import SinovaIdentityForm from './components/SinovaIdentityForm.jsx';
 
 const GAME_SCRIPTS = [
   '/game/core/00-registry.js',
@@ -25,18 +28,29 @@ const GAME_SCRIPTS = [
   '/game/ui/21-loop.js',
 ];
 
+// Key onboarding SINOVA (terpisah dari data progres engine).
+const TUTORIAL_KEY = 'sinova_tutorial_completed';
+const STUDENT_KEY = 'sinova_student';
+// Key lama engine untuk nama siswa — tetap dipakai agar log hasil tetap tercatat.
+const LEGACY_NAME_KEY = 'netcrimp_v1_nama';
+
+function readInitialStage() {
+  try {
+    const student = localStorage.getItem(STUDENT_KEY);
+    if (student) return 'game';
+    const tutorialDone = localStorage.getItem(TUTORIAL_KEY) === 'true';
+    return tutorialDone ? 'identity' : 'welcome';
+  } catch (e) {
+    return 'welcome';
+  }
+}
+
 export default function App() {
   const [gameReady, setGameReady] = useState(false);
+  const [stage, setStage] = useState(readInitialStage);
   const canvasRef = useRef(null);
 
   useEffect(() => {
-    // Rollback SINOVA: bersihkan key onboarding yang sudah tidak dipakai.
-    // Data progres/skor/ranking/log tetap tersimpan di KEY 'netcrimp_v1'.
-    try {
-      localStorage.removeItem('sinova_tutorial_completed');
-      localStorage.removeItem('sinova_student');
-    } catch (e) { /* ignore */ }
-
     let cancelled = false;
 
     async function loadGame() {
@@ -61,11 +75,43 @@ export default function App() {
     return () => { cancelled = true; };
   }, []);
 
+  // Selesai atau lewati tutorial → lanjut ke form bila data siswa belum ada.
+  const finishTutorial = useCallback(() => {
+    try {
+      localStorage.setItem(TUTORIAL_KEY, 'true');
+    } catch (e) { /* ignore */ }
+
+    let hasStudent = false;
+    try {
+      hasStudent = !!localStorage.getItem(STUDENT_KEY);
+    } catch (e) { /* ignore */ }
+
+    setStage(hasStudent ? 'game' : 'identity');
+    if (typeof window !== 'undefined') window.scrollTo(0, 0);
+  }, []);
+
+  // Simpan identitas siswa + sinkronkan nama ke engine agar muncul di log.
+  const submitIdentity = useCallback((data) => {
+    try {
+      localStorage.setItem(STUDENT_KEY, JSON.stringify(data));
+    } catch (e) { /* ignore */ }
+
+    try {
+      const el = document.getElementById('nama');
+      if (el) el.value = data.nama;
+      localStorage.setItem(LEGACY_NAME_KEY, data.nama);
+    } catch (e) { /* ignore */ }
+
+    setStage('game');
+  }, []);
+
+  const showCanvas = stage === 'game';
+
   return (
     <div className="app">
       <header className="app-header">
-        <h1>NetCrimp</h1>
-        <p>Game edukasi instalasi &amp; pengkabelan jaringan untuk siswa SMK TKJ</p>
+        <h1>SINOVA</h1>
+        <p>Simulation Interactive Network Virtual Academy — simulasi instalasi &amp; pengkabelan jaringan untuk siswa SMK TKJ</p>
       </header>
 
       <main className="app-main">
@@ -75,13 +121,23 @@ export default function App() {
             id="c"
             width={960}
             height={600}
-            aria-label="Area permainan NetCrimp"
+            aria-label="Area permainan SINOVA"
           />
           <input id="nama" type="text" maxLength={30} placeholder="Isi sebelum bermain" autoComplete="off" />
         </div>
-        {!gameReady && <div className="loading">Memuat game engine...</div>}
-        <p className="note">Kontrol: seret dan lepas dengan mouse atau sentuhan. Progres dan log hasil tersimpan di browser ini.</p>
+        {showCanvas && !gameReady && <div className="loading">Memuat game engine...</div>}
+        {showCanvas && (
+          <p className="note">Kontrol: seret dan lepas dengan mouse atau sentuhan. Progres dan log hasil tersimpan di browser ini.</p>
+        )}
       </main>
+
+      {stage === 'welcome' && (
+        <SinovaWelcome onStart={() => setStage('tutorial')} onSkip={finishTutorial} />
+      )}
+      {stage === 'tutorial' && (
+        <SinovaTutorial onFinish={finishTutorial} onSkip={finishTutorial} />
+      )}
+      {stage === 'identity' && <SinovaIdentityForm onSubmit={submitIdentity} />}
     </div>
   );
 }

@@ -104,7 +104,7 @@ globalThis.__NC = {
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>NetCrimp — Game Engine</title>
+<title>SINOVA — Game Engine</title>
 </head>
 <body>
 <canvas id="c" width="960" height="600"></canvas>
