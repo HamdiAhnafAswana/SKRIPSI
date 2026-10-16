@@ -9,11 +9,10 @@
 //   Panel Kanan     746..950     — KONFIGURASI (dropdown) + PING TEST
 //   Footer          10..950, y 536..600 — Andi + Dialog + Bantuan
 //
-// Alur fase:  brief → play → pingSuccess → quiz → (endLevel) → RAPOR
+// Alur fase:  brief → play → pingSuccess → (endLevel) → RAPOR
 //   play        : pasang kabel (drag), konfigurasi IP, ping
-//   pingSuccess : modal "Jaringan berhasil terhubung!" → tombol Lanjut Evaluasi
-//   quiz        : 4 soal dari bank soal (state stabil, feedback per jawaban)
-//   RAPOR       : lv.makeResult → LEVEL 4 SELESAI (skor, waktu, benar/salah,
+//   pingSuccess : modal "Jaringan berhasil terhubung!" → tombol Lihat Hasil
+//   RAPOR       : lv.makeResult → LEVEL 4 SELESAI (skor, waktu, kesalahan,
 //                 bantuan, bintang, badge) + Ulangi Level / Lanjut Level 5
 //
 // Kabel dinamis: setiap kabel punya state pc (connectedDevice) & port
@@ -125,23 +124,11 @@ function makeL4() {
     lv.flash = null;
     lv.anim = null;
     lv.openField = null;
-    lv.quiz = null;
 
     /* --- Kompatibilitas: daftar kabel yang sudah terpasang di port --- */
     Object.defineProperty(lv, 'placedCables', {
         get: () => lv.cables.filter(c => c.port != null)
     });
-
-    /* --- Bank soal kuis --- */
-    const QUIZ_BANK = [
-        { q: 'Kabel apa yang digunakan untuk menghubungkan PC ke Switch?', ans: 0, opts: ['Straight-Through', 'Crossover', 'Console', 'Coaxial'], why: 'PC ke Switch memerlukan kabel Straight-Through karena perangkat berbeda jenis (DTE ke DCE).' },
-        { q: 'Apa fungsi LED hijau pada port switch?', ans: 1, opts: ['Menunjukkan aktivitas data', 'Menunjukkan koneksi link aktif', 'Menunjukkan daya listrik', 'Menunjukkan error'], why: 'LED hijau menunjukkan link aktif — kabel terhubung dengan benar dan koneksi fisik berhasil.' },
-        { q: 'Jika ping dari PC1 ke PC2 gagal, apa yang harus diperiksa pertama kali?', ans: 2, opts: ['IP address', 'Subnet mask', 'Kabel dan LED link', 'Gateway'], why: 'Troubleshooting dimulai dari layer fisik: periksa kabel dan LED link sebelum konfigurasi IP.' },
-        { q: 'Apa yang dimaksud dengan IP address?', ans: 0, opts: ['Alamat unik perangkat di jaringan', 'Nama komputer', 'Alamat MAC', 'Port number'], why: 'IP address adalah alamat logis unik yang digunakan perangkat untuk berkomunikasi di jaringan.' },
-        { q: 'Subnet mask 255.255.255.0 berarti...', ans: 1, opts: ['254 host per jaringan', '256 host per jaringan', '255 host per jaringan', '253 host per jaringan'], why: 'Subnet mask 255.255.255.0 (/24) menyediakan 254 host (2^8 - 2) per jaringan.' },
-        { q: 'Apa fungsi dari perintah ping?', ans: 2, opts: ['Mengirim file', 'Mengkonfigurasi IP', 'Menguji koneksi antar perangkat', 'Melihat daftar perangkat'], why: 'Ping mengirim paket ICMP echo request untuk menguji apakah perangkat tujuan dapat dijangkau.' }
-    ];
-    lv.quizzes = shuffle(QUIZ_BANK.slice()).slice(0, 4);
 
     /* ================================================================
        HELPER FUNCTIONS
@@ -851,112 +838,23 @@ function makeL4() {
         ctx.fillStyle = C.panel; ctx.fill();
         ctx.strokeStyle = C.ok; ctx.lineWidth = 2; ctx.stroke();
         txt('Jaringan berhasil terhubung!', x + w / 2, y + 36, { s: 22, f: FONT_H, a: 'center', c: C.ok, w: 600 });
-        txt('Semua koneksi fisik dan konfigurasi jaringan sudah benar. Lanjutkan evaluasi pemahaman.', x + w / 2, y + 78, { s: 14, a: 'center', c: C.text, w: 560 });
-        btn(x + w / 2 - 100, y + h - 60, 200, 36, 'Lanjut Evaluasi', () => {
-            startQuiz();
+        txt('Semua koneksi fisik dan konfigurasi jaringan sudah benar. Tekan tombol untuk melihat hasil praktikum.', x + w / 2, y + 78, { s: 14, a: 'center', c: C.text, w: 560 });
+        btn(x + w / 2 - 100, y + h - 60, 200, 36, 'Lihat Hasil \u25b8', () => {
+            l4Selesai();
         }, { s: 13, color: C.ok });
     }
 
     /* ================================================================
-       QUIZ
+       PENUTUP PRAKTIK
        ================================================================ */
-    function startQuiz() {
-        lv.phase = 'quiz';
-        lv.modal = null;
-        lv.quiz = {
-            list: lv.quizzes,
-            idx: 0,
-            picked: null,
-            correct: 0,
-            answers: [],
-            feedback: null
-        };
-        l4Andi('Jawab 4 soal evaluasi. Baca dengan teliti.');
-    }
-
-    function pickQuiz(i) {
-        const qz = lv.quiz;
-        if (!qz || qz.picked !== null) return;
-        const q = qz.list[qz.idx];
-        if (!q) return;
-        qz.picked = i;
-        qz.answers[qz.idx] = i;
-        if (i === q.ans) {
-            qz.correct++;
-            l4Flash('Jawaban benar!', 'ok');
-            SND.benar();
-        } else {
-            lv.penalize(10, 'Jawaban kuis salah');
-            SND.salah();
-        }
-        qz.feedback = { ok: i === q.ans, why: q.why };
-    }
-
-    function nextQuiz() {
-        const qz = lv.quiz;
-        if (!qz || qz.picked === null) return;
-        if (qz.idx < qz.list.length - 1) {
-            qz.idx++;
-            qz.picked = null;
-            qz.feedback = null;
-        } else {
-            finishQuiz();
-        }
-    }
-
-    function finishQuiz() {
-        const qz = lv.quiz;
-        lv.quizCorrect = qz.correct;
-        lv.quizTotal = qz.list.length;
+    function l4Selesai() {
+        if (lv.finished) return;
         if (!lv.badges.includes('Jaringan Hidup')) lv.badges.push('Jaringan Hidup');
         if (!lv.hintUsed && !lv.badges.includes('TANPA BANTUAN')) lv.badges.push('TANPA BANTUAN');
         lv.logExtra.bantuan = lv.hintUsed ? 1 : 0;
         lv.logExtra.lencana = lv.badges.join(', ');
+        lv.finished = true;
         endLevel(lv, true);
-    }
-
-    function drawQuizPhase(now) {
-        // Hapus tombol game agar klik hanya ke kuis
-        btns.length = 0;
-        deskBG();
-        ctx.fillStyle = 'rgba(4,10,20,.85)';
-        ctx.fillRect(0, 54, W, H - 54);
-
-        const x = 150, y = 78, w = 660, h = 452;
-        rr(x, y, w, h, 18);
-        ctx.fillStyle = C.panel; ctx.fill();
-        ctx.strokeStyle = C.warn; ctx.lineWidth = 2; ctx.stroke();
-
-        const qz = lv.quiz;
-        const q = qz.list[qz.idx];
-        if (!q) return;
-
-        txt('KUIS LEVEL 4', x + w / 2, y + 30, { s: 22, f: FONT_H, a: 'center', c: C.warn, w: 600 });
-        txt('Pertanyaan ' + (qz.idx + 1) + ' dari ' + qz.list.length, x + w / 2, y + 52, { s: 13, a: 'center', c: C.mute, w: 600 });
-        para(q.q, x + w / 2, y + 84, w - 80, 22, { s: 16, a: 'center', c: C.text, w: 700 });
-
-        const optY = y + 140, optH = 40, optGap = 8;
-        q.opts.forEach((opt, i) => {
-            const oy = optY + i * (optH + optGap);
-            let color = '#2b4360', tc = C.text, dis = false;
-            if (qz.picked !== null) {
-                dis = true;
-                if (i === q.ans) { color = C.ok; tc = '#04160f'; }
-                else if (i === qz.picked) { color = '#5b2530'; tc = '#f5b5bd'; }
-                else { color = '#22344a'; tc = C.mute; }
-            }
-            btn(x + 30, oy, w - 60, optH, opt, () => pickQuiz(i), { color: color, tc: tc, disabled: dis, s: 14 });
-        });
-
-        // Feedback setelah menjawab
-        if (qz.picked !== null) {
-            const fb = qz.feedback;
-            const fy = optY + 4 * (optH + optGap) + 6;
-            txt(fb.ok ? '✓ Benar' : '✗ Salah', x + 40, fy, { s: 14, w: 800, c: fb.ok ? C.ok : C.bad });
-            para(fb.why, x + 40, fy + 20, w - 80, 16, { s: 12, c: C.text, w: 600 });
-            const last = qz.idx === qz.list.length - 1;
-            btn(x + w / 2 - 110, y + h - 58, 220, 40, last ? 'Lihat Rapor' : 'Lanjut ▸', () => nextQuiz(), { s: 14, color: C.ok });
-        }
     }
 
     /* ================================================================
@@ -1020,13 +918,12 @@ function makeL4() {
 
                 const rowY = y + 246, dy = 28;
                 infoRow(l, 'Waktu', fmt(l.dur), rowY);
-                infoRow(l, 'Jawaban benar', (l.quizCorrect || 0) + ' / ' + (l.quizTotal || (l.quizzes ? l.quizzes.length : 0)), rowY + dy);
-                infoRow(l, 'Kesalahan', l.mistakes.length, rowY + dy * 2);
-                infoRow(l, 'Bantuan', l.hintUsed ? 'Dipakai' : 'Tidak dipakai', rowY + dy * 3);
+                infoRow(l, 'Kesalahan', l.mistakes.length, rowY + dy);
+                infoRow(l, 'Bantuan', l.hintUsed ? 'Dipakai' : 'Tidak dipakai', rowY + dy * 2);
 
-                txt('Lencana', x + 60, rowY + dy * 4 + 6, { s: 13, c: C.acc, w: 800 });
+                txt('Lencana', x + 60, rowY + dy * 3 + 6, { s: 13, c: C.acc, w: 800 });
                 const badge = (l.badges && l.badges.length) ? l.badges.join('  •  ') : '—';
-                txt('🏅 ' + badge, x + 60, rowY + dy * 4 + 30, { s: 14, c: C.warn, w: 700 });
+                txt('🏅 ' + badge, x + 60, rowY + dy * 3 + 30, { s: 14, c: C.warn, w: 700 });
 
                 btn(x + 40, y + h - 66, 180, 44, 'Ulangi Level', () => startLevel(l.idx), { color: '#334155', tc: C.text, s: 14 });
                 if (ok && l.n < levelTotal()) btn(x + w - 40 - 200, y + h - 66, 200, 44, 'Lanjut Level 5', () => startLevel(l.n), { color: C.ok, s: 14 });
@@ -1055,8 +952,6 @@ function makeL4() {
             }
             drawBrief(now); return;
         }
-
-        if (lv.phase === 'quiz') { drawQuizPhase(now); return; }
 
         // Transisi otomatis: ping PC2 sukses → modal
         if (lv.phase === 'play' && lv.pingWinAt && now >= lv.pingWinAt) {
@@ -1148,6 +1043,6 @@ function makeL4() {
 registerLevel(4, {
     t: 'Simulasi Kabel Jaringan',
     m: 'Pilih kabel, hubungkan PC ke Switch, konfigurasi IP, ping',
-    desc: 'Simulasi penggunaan kabel jaringan di laboratorium. Pilih kabel yang tepat, hubungkan PC ke Switch, konfigurasi IP, lakukan ping, lalu jawab kuis evaluasi.',
+    desc: 'Simulasi penggunaan kabel jaringan di laboratorium. Pilih kabel yang tepat, hubungkan PC ke Switch, konfigurasi IP, lalu lakukan ping.',
     mk: makeL4
 });

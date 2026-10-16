@@ -181,7 +181,7 @@ const SCENES = {
 /* ------------------------------------------------------------------ render */
 const game = createGameHTML();   // game dirakit dari public/game/ (bukan index.html Vite)
 const EXPORTS = `globalThis.__NC = { W, H, LEVELS, levelTotal, levelList, go, startLevel,
-  scene: () => scene, save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
+  scene: () => scene, save, persist, baseLevel, endLevel, mouse: () => mouse, btns: () => btns, inR,
   newFrame: () => { hoverBtn = false; btns = []; } };`;
 // matikan loop rAF supaya frame digambar sepenuhnya oleh driver (deterministik)
 const js = ('window.requestAnimationFrame = () => 0;\n' + game.match(/<script>\r?\n([\s\S]*?)\r?\n<\/script>/)[1])

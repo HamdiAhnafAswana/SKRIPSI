@@ -1,21 +1,21 @@
 // ============================================================================
-//  UJI INTERAKSI LEVEL 4  --  node tools/play4.mjs
+//  UJI INTERAKSI LEVEL 4 (JARINGAN)  --  node tools/play4.mjs
 //
-//  Menjalankan game di Node (stub DOM/canvas) dan memainkan Level 4
-//  "Pasang ke Patch Panel" dari awal sampai layar hasil:
-//   - Kontrak level & inisialisasi (4 kabel, 8 port, bilah awal)
-//   - Drag kabel ke port SALAH -> penalti & kembali home
-//   - Drag 4 kabel ke port yang benar sesuai daftar jalur
-//   - Alat salah (Crimping Tool) -> penalti "bukan alat untuk punch-down"
-//   - Punch-down dengan bilah menghadap dalam -> penalti & port tidak jadi
-//   - Atur bilah ke luar, punch-down 4 port -> terminasi & level menang
-//   - Animasi punch-down tool (lv.pa) berjalan tanpa error
-//   - Layar hasil, skor & log tersimpan
+//  Menjalankan game sungguhan di Node (stub DOM/canvas) dan memainkan Level 4
+//  "Simulasi Penggunaan Kabel Jaringan" dengan skenario NEGATIF terlebih
+//  dahulu (port terpakai ditolak, IP salah -> ping gagal), lalu diperbaiki
+//  sampai sukses:
 //
-//  Membuktikan rendering/animasi baru (drawPunchTool, port berkedalaman,
-//  LED status) tidak mengubah mekanisme simulasi Level 4.
+//   Skenario 1  Drag kabel #1 ke port 1        -> link aktif (LED hijau)
+//   Skenario 2  Coba kabel #2 ke port 1 (isi)  -> ditolak, port tetap
+//   Skenario 3  Drag kabel #2 ke port 2        -> kedua link aktif
+//   Skenario 4  Konfigurasi IP salah subnet    -> ping PC2 GAGAL
+//   Skenario 5  Perbaiki IP                    -> ping PC2 BERHASIL
+//   Skenario 6  Modal ping sukses -> "Lihat Hasil" -> layar hasil & RAPOR
+//
+//  Plus: validasi port (port terpakai ditolak), kabel dinamis (drag & lepas),
+//  dan penyimpanan hasil (best/stars/board4/log/lencana).
 // ============================================================================
-import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +25,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = createGameHTML();
 const raw = html.match(/<script>\r?\n([\s\S]*?)\r?\n<\/script>/)[1];
 const EXPORTS = `globalThis.__NC = { LEVELS, levelTotal, levelList, go, startLevel, scene: () => scene,
-  save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
+  save, persist, baseLevel, endLevel, mouse: () => mouse, btns: () => btns, inR,
   newFrame: () => { hoverBtn = false; btns = []; } };`;
 const js = raw.replace(/\}\)\(\);\s*$/, EXPORTS + '\n})();');
 
@@ -91,8 +91,7 @@ function click(x, y, label) {
   if (label) ok(label, true);
   return !!hitFn;
 }
-// drag khusus Level 4: down di kabel -> move (memakai lv.move) -> up di port
-function drag(x0, y0, x1, y1) {
+function drag(x0, y0, x1, y1, label) {
   const sc = NC.scene();
   NC.mouse().x = x0; NC.mouse().y = y0;
   frame();
@@ -103,90 +102,95 @@ function drag(x0, y0, x1, y1) {
   frame();
   if (sc.up) sc.up({ x: x1, y: y1 });
   frame();
+  if (label) ok(label, true);
 }
 
-const BX = j => 290 + j * 77, BY = 124;
-const PORT_CX = j => BX(j) + 32, PORT_CY = BY + 46;
+/* ---- koordinat (lihat levels/level4-network.js) ---- */
+const CHIP1 = { x: 102, y: 190 };                 // kartu kabel #1
+const CHIP2 = { x: 102, y: 244 };                 // kartu kabel #2
+const PORT = j => ({ x: 309 + j * 46, y: 422 });  // pusat port switch (0-based)
+const DROPDOWN = { pc1: 114, pc2: 166, subnet: 218, gateway: 270 };
+const OPT = (key, i) => ({ x: 848, y: DROPDOWN[key] + 34 + i * 30 + 14 });
+const BTN_PING_PC2 = { x: 848, y: 362 };
+const BTN_LANJUT_HASIL = { x: 480, y: 338 };
 
 async function run() {
-  console.log('== KONTRAK & INISIALISASI LEVEL 6 ==');
+  console.log('== KONTRAK & INISIALISASI LEVEL 4 ==');
   NC.save.teacher = true;
-  NC.startLevel(5); // Level 6 (0-indexed = 5) — Pasang ke Patch Panel
+  NC.startLevel(3); // Level 4 (0-indexed = 3)
   const lv = NC.scene();
   ok('scene terbentuk & punya draw', typeof lv.draw === 'function');
   ok('kontrak lengkap draw/down/move/up',
     typeof lv.draw === 'function' && typeof lv.down === 'function' &&
     typeof lv.move === 'function' && typeof lv.up === 'function');
-  ok('4 kabel & 8 port', lv.cables.length === 4 && lv.occ.length === 8,
-    'kabel=' + lv.cables.length + ' port=' + lv.occ.length);
-  ok('bilah awal menghadap dalam', lv.blade === 'in', 'blade=' + lv.blade);
+  ok('2 kabel straight + 8 port switch', lv.cables.length === 2 && lv.PORTS.length === 8,
+    'kabel=' + lv.cables.length + ' port=' + lv.PORTS.length);
   ok('skor mulai 100', lv.score === 100, 'skor=' + lv.score);
-  ok('daftar jalur 4 ruangan', lv.cables.every(c => c.room && c.port >= 1 && c.port <= 8),
-    lv.cables.map(c => 'Port ' + c.port + ':' + c.room).join(' ; '));
+  ok('mulai dari briefing', lv.phase === 'brief', 'phase=' + lv.phase);
 
-  console.log('\n== DRAG KE PORT SALAH -> PENALTI ==');
-  const c0 = lv.cables[0];
-  let jw = -1;
-  for (let j = 0; j < 8; j++) if (j + 1 !== c0.port && !lv.occ[j]) { jw = j; break; }
-  ok('ada port salah kosong untuk uji penalti', jw >= 0, 'Port ' + (jw + 1));
-  drag(c0.hx, c0.hy, PORT_CX(jw), 285);
-  ok('kabel ditolak (belum seated)', c0.seated === null, 'seated=' + c0.seated);
-  ok('kabel kembali ke home', c0.hx === c0.home && c0.hy === 510, 'hx=' + c0.hx);
-  ok('penalti salah port tercatat', lv.mistakes.some(m => m.indexOf('harus ke Port') >= 0),
-    'skor=' + lv.score);
+  console.log('\n== BRIEFING ==');
+  for (let i = 0; i < 10; i++) click(695, 441);
+  click(637, 504, 'klik Mulai Misi');
+  ok('masuk fase pemasangan kabel', lv.phase === 'play', 'phase=' + lv.phase);
 
-  console.log('\n== SEAT 4 KABEL KE PORT YANG BENAR ==');
-  lv.cables.forEach((c, i) => {
-    drag(c.hx, c.hy, PORT_CX(c.port - 1), 285);
-    ok('kabel ' + (i + 1) + ' (' + c.room + ') -> Port ' + c.port,
-      c.seated === c.port - 1 && lv.occ[c.port - 1] === c,
-      'seated=' + (c.seated == null ? 'null' : c.seated + 1));
-  });
-  ok('semua port terisi tepat', lv.occ.every((o, j) => (o != null) === lv.cables.some(c => c.port - 1 === j)));
+  console.log('\n== SKENARIO 1: KABEL #1 -> PORT 1 -> LINK AKTIF ==');
+  drag(CHIP1.x, CHIP1.y, PORT(0).x, PORT(0).y, 'seret kabel #1 ke port 1');
+  ok('kabel #1 terpasang di port 1', lv.cables[0].port === 1, 'port=' + lv.cables[0].port);
+  ok('kabel #1 terhubung ke PC', !!lv.cables[0].pc, 'pc=' + lv.cables[0].pc);
+  await wait(1100); frames(3);
+  ok('link aktif (LED hijau)', lv.PORTS[0].linkLED === true, 'linkLED=' + lv.PORTS[0].linkLED);
 
-  console.log('\n== ALAT SALAH -> PENALTI ==');
-  const jFirst = lv.cables[0].port - 1;         // port terisi pertama (acak)
-  click(355, 361, 'pilih Crimping Tool (alat salah)');   // TOOLS[0] (290..420, 330..392)
-  ok('tool terpilih crimping', lv.tool === 'crimp', 'tool=' + lv.tool);
-  click(PORT_CX(jFirst), PORT_CY, 'klik port berisi kabel');
-  ok('crimping tool ditolak untuk punch-down',
-    lv.mistakes.some(m => m.indexOf('bukan alat untuk punch-down') >= 0), 'skor=' + lv.score);
-  ok('port belum terminasi', !lv.occ[jFirst].punched);
+  console.log('\n== SKENARIO 2: PORT TERPAKAI DITOLAK ==');
+  drag(CHIP2.x, CHIP2.y, PORT(0).x, PORT(0).y, 'coba seret kabel #2 ke port 1 (terpakai)');
+  ok('kabel #2 ditolak (port 1 tetap milik kabel #1)', lv.cables[1].port === null && lv.PORTS[0].cable === 'c1',
+    'port1.cable=' + lv.PORTS[0].cable);
 
-  console.log('\n== PUNCH-DOWN DENGAN BILAH DALAM -> PENALTI ==');
-  click(495, 361, 'pilih Punch-down Tool');               // TOOLS[1] (430..560)
-  ok('tool terpilih punch-down', lv.tool === 'punch', 'tool=' + lv.tool);
-  click(PORT_CX(jFirst), PORT_CY, 'punch dengan bilah menghadap dalam');
-  ok('bilah dalam ditolak', lv.mistakes.some(m => m.indexOf('Bilah potong harus menghadap ke luar') >= 0),
-    'skor=' + lv.score);
-  ok('port tetap belum terminasi', !lv.occ[jFirst].punched);
+  console.log('\n== SKENARIO 3: KABEL #2 -> PORT 2 -> KEDUA LINK AKTIF ==');
+  drag(CHIP2.x, CHIP2.y, PORT(1).x, PORT(1).y, 'seret kabel #2 ke port 2');
+  ok('kabel #2 terpasang di port 2', lv.cables[1].port === 2, 'port=' + lv.cables[1].port);
+  await wait(1100); frames(3);
+  ok('kedua link aktif', lv.PORTS[0].linkLED === true && lv.PORTS[1].linkLED === true,
+    'p1=' + lv.PORTS[0].linkLED + ' p2=' + lv.PORTS[1].linkLED);
 
-  console.log('\n== ATUR BILAH KE LUAR & PUNCH-DOWN 4 PORT ==');
-  click(818, 361, 'atur bilah menghadap luar');           // btn (725..912, 330..392)
-  ok('bilah kini menghadap luar', lv.blade === 'out', 'blade=' + lv.blade);
-  lv.cables.forEach((c, i) => {
-    const j = c.port - 1;
-    click(PORT_CX(j), PORT_CY, 'punch-down Port ' + (j + 1) + ' (' + c.room + ')');
-    ok('Port ' + (j + 1) + ' terminasi', c.punched === true, 'punched=' + c.punched);
-    frames(8);                                            // animasi punch-down tool berjalan
-  });
-  ok('animasi punch-down (lv.pa) selesai tanpa error', lv.pa === null || typeof lv.pa.t0 === 'number');
-  ok('semua kabel terminasi', lv.cables.every(c => c.punched));
-  ok('level menang (phase=fin)', lv.phase === 'fin', 'phase=' + lv.phase);
+  console.log('\n== SKENARIO 4: KONFIGURASI IP SALAH -> PING GAGAL ==');
+  click(848, DROPDOWN.pc1, 'buka dropdown IP PC1');
+  click(OPT('pc1', 0).x, OPT('pc1', 0).y, 'pilih IP PC1');
+  click(848, DROPDOWN.pc2, 'buka dropdown IP PC2');
+  click(OPT('pc2', 2).x, OPT('pc2', 2).y, 'pilih IP PC2 (subnet berbeda)');
+  click(848, DROPDOWN.subnet, 'buka dropdown Subnet');
+  click(OPT('subnet', 0).x, OPT('subnet', 0).y, 'pilih Subnet');
+  ok('IP terkonfigurasi', !!(lv.ipConfig.pc1 && lv.ipConfig.pc2 && lv.ipConfig.subnet),
+    lv.ipConfig.pc1 + ' / ' + lv.ipConfig.pc2 + ' / ' + lv.ipConfig.subnet);
+  click(BTN_PING_PC2.x, BTN_PING_PC2.y, 'klik Ping PC2');
+  ok('ping GAGAL (subnet beda)', lv.pingResult === 'fail', 'ping=' + lv.pingResult);
 
-  console.log('\n== TUNGGU LAYAR HASIL ==');
-  await wait(2000);
-  frames(6);
+  console.log('\n== SKENARIO 5: PERBAIKI IP -> PING BERHASIL ==');
+  click(848, DROPDOWN.pc2, 'buka dropdown IP PC2');
+  click(OPT('pc2', 0).x, OPT('pc2', 0).y, 'pilih IP PC2 (subnet sama)');
+  click(BTN_PING_PC2.x, BTN_PING_PC2.y, 'klik Ping PC2 lagi');
+  ok('ping berhasil', lv.pingResult === 'ok', 'ping=' + lv.pingResult);
+  ok('pingPc2 ditandai', lv.pingPc2 === true);
+  await wait(1100); frames(3);
+  ok('modal "Jaringan berhasil terhubung!" muncul', lv.phase === 'pingSuccess' && lv.modal === 'pingSuccess',
+    'phase=' + lv.phase + ' modal=' + lv.modal);
+
+  console.log('\n== SKENARIO 6: LIHAT HASIL -> LAYAR RAPOR ==');
+  click(BTN_LANJUT_HASIL.x, BTN_LANJUT_HASIL.y, 'klik Lihat Hasil');
+  for (let i = 0; i < 40; i++) { frame(); await wait(50); if (lv.finished) break; }
   ok('level selesai (finished)', lv.finished === true, 'finished=' + lv.finished);
-  ok('skor tersimpan di save.best[5]', (NC.save.best[5] || 0) === lv.score, 'best=' + NC.save.best[5]);
-  ok('bintang tersimpan', (NC.save.stars[5] || 0) >= 1, 'stars=' + NC.save.stars[5]);
-  ok('log level 6 tersimpan', NC.save.log.some(e => e.level === 6 && e.hasil === 'Lulus'));
   ok('scene berpindah ke layar hasil', NC.scene() !== lv);
+  ok('skor tersimpan di save.best[3]', (NC.save.best[3] || 0) === lv.score, 'best=' + NC.save.best[3]);
+  ok('bintang tersimpan', (NC.save.stars[3] || 0) >= 1, 'stars=' + NC.save.stars[3]);
+  ok('papan skor board4 terisi', Array.isArray(NC.save.board4) && NC.save.board4.length >= 1,
+    'board4=' + (NC.save.board4 || []).length);
+  ok('log level 4 tersimpan', NC.save.log.some(e => e.level === 4 && e.hasil === 'Lulus'));
+  ok('lencana "Jaringan Hidup" tercatat', (lv.logExtra.lencana || '').includes('Jaringan Hidup'),
+    'lencana=' + lv.logExtra.lencana);
 
   console.log('\n== RINGKASAN TEST PLAY4 ==');
   console.log('frame digambar : ' + drawn);
   console.log('total kegagalan : ' + failures);
   if (failures) { console.log('==> GAGAL'); process.exit(1); }
-  console.log('==> SEMUA PENGUJIAN LEVEL 6 LULUS!');
+  console.log('==> SEMUA PENGUJIAN LEVEL 4 LULUS!');
 }
 run();

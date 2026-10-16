@@ -93,7 +93,7 @@ const SCENES = {
 
 const game = createGameHTML();
 const EXPORTS = `globalThis.__NC = { W, H, LEVELS, levelTotal, levelList, go, startLevel,
-  scene: () => scene, save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
+  scene: () => scene, save, persist, baseLevel, endLevel, mouse: () => mouse, btns: () => btns, inR,
   newFrame: () => { hoverBtn = false; btns = []; } };`;
 const js = ('window.requestAnimationFrame = () => 0;\n'
   + 'window.setTimeout = (f, t) => { if (t && t >= 5000) return setTimeout(f, t); f(); return 0; };\n'

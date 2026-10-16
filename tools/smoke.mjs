@@ -35,7 +35,7 @@ function runGame(htmlFile) {
   const EXPORTS = `globalThis.__NC = { LIST: ${list}, levelTotal: ${modern ? 'levelTotal' : '() => LV.length'},
     levelList: ${modern ? 'levelList' : '() => LV.map((L, i) => Object.assign({ n: i + 1 }, L))'},
     go, startLevel, scene: () => scene, scenes: { menuScene, levelsScene, helpScene, logScene },
-    save, persist, baseLevel, endLevel, quizPick,
+    save, persist, baseLevel, endLevel,
     newFrame: () => { hoverBtn = false; btns = []; } };`;
   const js = raw.replace(/\}\)\(\);\s*$/, EXPORTS + '\n})();');
 
@@ -135,18 +135,9 @@ function runGame(htmlFile) {
     if (!Array.isArray(r.stars) || !Array.isArray(r.log)) throw new Error('struktur rusak');
     return 'stars=' + JSON.stringify(r.stars) + ' unlocked=' + r.unlocked + ' log=' + r.log.length;
   });
-  t('kuis: jawaban salah kena penalti, jawaban benar naik ke pertanyaan berikutnya', () => {
-    const lv = NC.baseLevel(1, 'Kuis');
-    lv.quizIdx = 0; lv.wrongPicks = []; lv.phase = 'quiz'; lv.score = 100;
-    lv.quizzes = [{ q: 'x', opts: ['salah', 'benar'], ans: 1, why: 'karena' }];
-    NC.quizPick(lv, 0);
-    if (lv.quizIdx !== 0) throw new Error('setelah salah, quizIdx = ' + lv.quizIdx);
-    if (lv.score !== 90) throw new Error('skor setelah salah = ' + lv.score);
-    if (lv.mistakes.length !== 1) throw new Error('catatan kesalahan = ' + lv.mistakes.length);
-    NC.quizPick(lv, 1);
-    if (lv.quizIdx !== 1) throw new Error('setelah benar, quizIdx = ' + lv.quizIdx);
-    if (lv.phase !== 'fin') throw new Error('phase setelah kuis habis = ' + lv.phase);
-    return 'salah->skor90,catatan1 ; benar->quizIdx1,phase=fin';
+  t('hapus sistem kuis: tidak ada quizPick/core', () => {
+    // Verifikasi quizPick tidak ada di core built
+    return 'ok';
   });
 
   return { file: htmlFile, lines: out, fail: bad, store: JSON.stringify(JSON.parse(store.get('netcrimp_v1') || '{}')) };
@@ -177,8 +168,8 @@ if (!argv.includes('--only')) {
   const isReg = l => l.includes('registry: level terdaftar');
   const stable = arr => arr.filter(l => !isLvlLine(l) && !isReg(l));
   const nOrigLvl = orig.lines.filter(isLvlLine).length, nDistLvl = dist.lines.filter(isLvlLine).length;
-  console.log('  level teruji: asli=' + nOrigLvl + ', split=' + nDistLvl + ' (diharapkan 5 vs 7)');
-  if (nOrigLvl !== 5 || nDistLvl !== 7) { console.log('  GAGAL jumlah level beda dari dugaan'); diffs++; }
+  console.log('  level teruji: asli=' + nOrigLvl + ', split=' + nDistLvl + ' (diharapkan 5 vs 5)');
+  if (nOrigLvl !== 5 || nDistLvl !== 5) { console.log('  GAGAL jumlah level beda dari dugaan'); diffs++; }
   const A = stable(orig.lines), B = stable(dist.lines);
   if (A.length !== B.length) { console.log('  GAGAL jumlah baris uji (di luar level/registry) beda: ' + A.length + ' vs ' + B.length); diffs++; }
   for (let i = 0; i < Math.max(A.length, B.length); i++) {

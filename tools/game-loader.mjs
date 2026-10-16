@@ -93,7 +93,6 @@ globalThis.__NC = {
   persist,
   baseLevel,
   endLevel,
-  quizPick,
   mouse: () => mouse,
   btns: () => btns,
   inR,

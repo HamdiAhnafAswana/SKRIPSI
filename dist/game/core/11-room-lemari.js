@@ -11,23 +11,25 @@ const ROOM = {
     H: { w1: '#13241f', w2: '#0a1512', f1: '#08120f', f2: '#030806', lamp: '#8ef0bb', glow: '142,240,187' }
 };
 function buildRoom(K) {
-    const cn = document.createElement('canvas'); cn.width = W; cn.height = H;
+    const cn = document.createElement('canvas');
+    const vw = typeof VW !== 'undefined' ? VW : W;
+    cn.width = vw; cn.height = H;
     const g = cn.getContext('2d'); const prev = ctx; ctx = g;
     const P = ROOM[K.kode] || ROOM.A; const hz = 470;
     let grd = ctx.createLinearGradient(0, 54, 0, hz);
     grd.addColorStop(0, P.w1); grd.addColorStop(1, P.w2);
-    ctx.fillStyle = grd; ctx.fillRect(0, 0, W, hz);
+    ctx.fillStyle = grd; ctx.fillRect(0, 0, vw, hz);
     grd = ctx.createLinearGradient(0, hz, 0, H);
     grd.addColorStop(0, P.f1); grd.addColorStop(1, P.f2);
-    ctx.fillStyle = grd; ctx.fillRect(0, hz, W, H - hz);
+    ctx.fillStyle = grd; ctx.fillRect(0, hz, vw, H - hz);
     ctx.strokeStyle = 'rgba(255,255,255,.045)'; ctx.lineWidth = 1;
-    for (let x = 0; x <= W; x += 80) { ctx.beginPath(); ctx.moveTo(x, 54); ctx.lineTo(x, hz); ctx.stroke(); }
-    ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.fillRect(0, hz, W, 2);
+    for (let x = 0; x <= vw; x += 80) { ctx.beginPath(); ctx.moveTo(x, 54); ctx.lineTo(x, hz); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.fillRect(0, hz, vw, 2);
     ctx.fillStyle = 'rgba(255,255,255,.10)';
-    ctx.beginPath(); ctx.ellipse(W / 2, 70, 220, 26, 0, 0, 6.3); ctx.fill();
-    const rg = ctx.createRadialGradient(W / 2, 78, 6, W / 2, 300, 460);
+    ctx.beginPath(); ctx.ellipse(vw / 2, 70, 220, 26, 0, 0, 6.3); ctx.fill();
+    const rg = ctx.createRadialGradient(vw / 2, 78, 6, vw / 2, 300, 460);
     rg.addColorStop(0, 'rgba(' + P.glow + ',.14)'); rg.addColorStop(1, 'rgba(' + P.glow + ',0)');
-    ctx.fillStyle = rg; ctx.fillRect(0, 54, W, 520);
+    ctx.fillStyle = rg; ctx.fillRect(0, 54, vw, 520);
     if (K.kode === 'A') {
         for (let i = 0; i < 2; i++) { const x = 4 + i * 40, y = hz - 58; ctx.fillStyle = '#0c1624'; ctx.fillRect(x, y, 34, 58); ctx.fillStyle = 'rgba(56,189,248,.22)'; ctx.fillRect(x + 4, y + 6, 26, 18); }
         ctx.fillStyle = 'rgba(56,189,248,.10)'; ctx.fillRect(700, hz - 130, 96, 46);
@@ -37,11 +39,13 @@ function buildRoom(K) {
         ctx.fillStyle = 'rgba(255,176,102,.10)'; ctx.fillRect(720, hz - 120, 110, 40);
     } else {
         ctx.strokeStyle = 'rgba(142,240,187,.16)'; ctx.lineWidth = 2;
-        for (let i = 0; i < 26; i++) { const x = (i * 137) % W; ctx.beginPath(); ctx.moveTo(x, 54); ctx.lineTo(x - 18, 300); ctx.stroke(); }
+        for (let i = 0; i < 26; i++) { const x = (i * 137) % vw; ctx.beginPath(); ctx.moveTo(x, 54); ctx.lineTo(x - 18, 300); ctx.stroke(); }
         ctx.fillStyle = '#0b1a16'; ctx.fillRect(0, hz - 84, 60, 84);
         ctx.fillStyle = 'rgba(142,240,187,.14)'; ctx.fillRect(6, hz - 76, 48, 30);
     }
-    ctx = prev; return cn;
+    ctx = prev;
+    cn._vw = vw;
+    return cn;
 }
 const CABG = { FX: 36, FY: 156, FW: 560, FH: 380, T: 18, DX: 30, DY: -26 };
 CABG.IX = CABG.FX + CABG.T; CABG.IY = CABG.FY + CABG.T;

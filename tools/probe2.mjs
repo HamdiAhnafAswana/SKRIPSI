@@ -191,8 +191,6 @@ kotak('bar Andi: kolom KENAPA', '18-bar-andi', 506, 550, 200, 40, 110);
 kotak('bar Andi: kolom AWAS', '18-bar-andi', 728, 550, 200, 40, 110);
 kotak('kartu pesan di panel kanan bawah', '18-bar-andi', 804, 384, 140, 130, 110);
 kotak('strip atas: tombol + counter', '01-awal', 10, 57, 940, 26, 120);
-kotak('kuis: pertanyaan terbaca', '17-kuis', 200, 150, 560, 60, 130);
-kotak('kuis: opsi jawaban terbaca', '17-kuis', 240, 240, 480, 180, 130);
 
 function gelapM(c) { return lum(c) < 70; }
 /* Menghitung kelompok piksel gelap berurutan pada satu baris. Dipakai untuk

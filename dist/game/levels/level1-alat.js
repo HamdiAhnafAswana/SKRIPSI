@@ -98,11 +98,6 @@ function makeL1() {
     lv.fbMode = false; lv.savedElapsed = 0; lv.fly = null; lv.drag = null; lv.got = [];
     lv.hoverIt = null; lv.reaction = null; lv.reactUntil = 0;
     lv.limit = 75; lv.combo = 0; lv.maxCombo = 0; lv.particles = [];
-    lv.wrongPicks = []; lv.quizIdx = 0;
-    lv.quizzes = [
-        { q: 'Alat apa yang digunakan untuk mengupas selubung luar kabel UTP tanpa melukai konduktor di dalamnya?', opts: ['Cable Stripper', 'Crimping Tool', 'Tang Kombinasi', 'Obeng'], ans: 0, why: 'Cable stripper dirancang khusus untuk mengupas jaket luar kabel dengan rapi.' },
-        { q: 'Mengapa instalasi kabel LAN outdoor membutuhkan kabel khusus, bukan kabel indoor biasa?', opts: ['Kabel outdoor lebih murah', 'Kabel outdoor tahan panas, hujan, dan sinar UV', 'Kabel outdoor tidak membutuhkan RJ-45', 'Tidak ada perbedaan signifikan'], ans: 1, why: 'Kabel UTP outdoor memiliki pelindung tahan cuaca dan tahan air.' }
-    ];
     const G = CABG;
     const TB = { x: 656, y: 118, w: 288, h: 418 };
     lv.TB = TB;
@@ -425,7 +420,7 @@ function makeL1() {
         return best;
     }
     function drawPlay(now) {
-        ctx.drawImage(lv.bgSpr, 0, 0);
+        if (lv.bgSpr) ctx.drawImage(lv.bgSpr, -OX, 0, lv.bgSpr.width, lv.bgSpr.height);
         hud(lv);
         const mxs = mouse.x >= 0 ? mouse.x : W / 2;
         const mys = mouse.y >= 0 ? mouse.y : H / 2;
@@ -572,7 +567,7 @@ function makeL1() {
             const whyLines = wrapLines(t.why, card.w - 180, 11, 600);
             txt(whyLines[0], card.x + 88, y + 38, { s: 11, c: C.mute, w: 600 });
         });
-        btn(card.x + card.w / 2 - 120, card.y + card.h - 64, 240, 48, 'Lanjut ke Kuis \u25b8', () => { lv.phase = 'quiz'; }, { s: 16, color: C.acc });
+        btn(card.x + card.w / 2 - 120, card.y + card.h - 64, 240, 48, 'Lihat Hasil \u25b8', () => { lv.win(900); }, { s: 16, color: C.acc });
     }
     lv.draw = function () {
         lv.tick();
@@ -591,7 +586,6 @@ function makeL1() {
         if (lv.fbMode) {
             if (lv.phase === 'summary') { drawSummary(now); return; }
             drawFeedback(now);
-            if (lv.phase === 'quiz' || (lv.phase === 'fin' && lv.quizzes)) drawQuiz(lv);
             return;
         }
         drawPlay(now);
@@ -622,6 +616,6 @@ function makeL1() {
 registerLevel(1, {
     t: 'Persiapan Alat & Bahan',
     m: 'Briefing, studi kasus acak, dan pemilihan alat',
-    desc: 'Baca briefing dari Pak Andi, lalu buka lemari alat dan ambil alat yang tepat sesuai studi kasus. Ada batas waktu 75 detik, combo bonus, dan kuis di akhir.',
+    desc: 'Baca briefing dari Pak Andi, lalu buka lemari alat dan ambil alat yang tepat sesuai studi kasus. Ada batas waktu 75 detik dan combo bonus.',
     mk: makeL1
 });

@@ -22,7 +22,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = createGameHTML();
 const raw = html.match(/<script>\r?\n([\s\S]*?)\r?\n<\/script>/)[1];
 const EXPORTS = `globalThis.__NC = { LEVELS, levelTotal, levelList, go, startLevel, scene: () => scene,
-  save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
+  save, persist, baseLevel, endLevel, mouse: () => mouse, btns: () => btns, inR,
   newFrame: () => { hoverBtn = false; btns = []; } };`;
 const js = raw.replace(/\}\)\(\);\s*$/, EXPORTS + '\n})();');
 
@@ -128,7 +128,7 @@ async function run() {
   ok('2 kabel straight + 8 port switch', lv.cables.length === 2 && lv.PORTS.length === 8,
     'kabel=' + lv.cables.length + ' port=' + lv.PORTS.length);
   ok('mulai dari briefing', lv.phase === 'brief', 'phase=' + lv.phase);
-  ok('bank soal terpilih 4 soal', lv.quizzes.length === 4, 'soal=' + lv.quizzes.length);
+  ok('LV4 memiliki struktur valid', !!lv.cables, 'cables ok');
 
   console.log('\n== BRIEFING ==');
   for (let i = 0; i < 10; i++) click(695, 441);
@@ -185,17 +185,9 @@ async function run() {
   await wait(1100); frames(3);
   ok('modal "Jaringan berhasil terhubung!" muncul', lv.phase === 'pingSuccess' && lv.modal === 'pingSuccess',
     'phase=' + lv.phase + ' modal=' + lv.modal);
-  click(BTN_LANJUT_EVAL.x, BTN_LANJUT_EVAL.y, 'klik Lanjut Evaluasi');
-  ok('masuk tahap kuis', lv.phase === 'quiz' && !!lv.quiz, 'phase=' + lv.phase);
+  click(BTN_LANJUT_EVAL.x, BTN_LANJUT_EVAL.y, 'klik Lihat Hasil');
+  ok('menuju layar hasil', NC.scene() !== lv, 'scene berpindah');
 
-  console.log('\n== SKENARIO 5: KUIS 4 SOAL -> RAPOR ==');
-  for (let qi = 0; qi < 4; qi++) {
-    const q = lv.quiz.list[lv.quiz.idx];
-    click(QUIZ_OPT(q.ans).x, QUIZ_OPT(q.ans).y, 'jawab kuis ' + (qi + 1) + ' benar');
-    ok('feedback tampil (soal ' + (qi + 1) + ')', lv.quiz.picked !== null && !!lv.quiz.feedback);
-    click(BTN_QUIZ_NEXT.x, BTN_QUIZ_NEXT.y, qi < 3 ? 'Lanjut ke soal ' + (qi + 2) : 'Lihat Rapor');
-  }
-  ok('kuis selesai -> pindah ke rapor', NC.scene() !== lv, 'scene berpindah=' + (NC.scene() !== lv));
   ok('skor tersimpan di save.best[3]', (NC.save.best[3] || 0) === lv.score, 'best=' + NC.save.best[3]);
   ok('bintang tersimpan', (NC.save.stars[3] || 0) >= 1, 'stars=' + NC.save.stars[3]);
   ok('papan skor board4 terisi', Array.isArray(NC.save.board4) && NC.save.board4.length === 1,

@@ -18,6 +18,8 @@
 
     "shot": "node tools/shot.mjs",
     "shot4": "node tools/shot4.mjs",
+    "shotvp": "node tools/shot-viewport.mjs",
+    "shotlive": "node tools/shot-live.mjs",
     "peek": "node tools/peek.mjs",
     "sapu": "node tools/sapu.mjs",
     "probe2": "node tools/probe2.mjs",

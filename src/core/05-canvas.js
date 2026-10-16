@@ -5,8 +5,44 @@
 // ==========================================================================
 
 /* ---------- kanvas ---------- */
-function fit() { const r = cv.getBoundingClientRect(); const d = Math.min(window.devicePixelRatio || 1, 2); cv.width = Math.max(1, Math.round(r.width * d)); cv.height = Math.max(1, Math.round(r.width * H / W * d)); }
-window.addEventListener('resize', fit); fit();
+/* Perbesar kanvas agar memenuhi area induk (letterbox) tanpa mengubah
+   koordinat logis 960x600. Skala = min(lebarTersedia/W, tinggiTersedia/H).
+   Backing store diskalakan devicePixelRatio supaya tetap tajam; ui/21-loop.js
+   memetakan koordinat logis ke backing store lewat ctx.setTransform. */
+function fit() {
+  const d = Math.min(window.devicePixelRatio || 1, 2);
+  const host = (cv.parentElement && cv.parentElement.getBoundingClientRect)
+    ? cv.parentElement.getBoundingClientRect() : cv.getBoundingClientRect();
+  const availW = Math.max(1, host.width || W), availH = Math.max(1, host.height || H);
+  const aspect = availW / availH;
+  if (aspect < 960 / 600) {
+    VW = 960; OX = 0;
+    const scale = Math.min(availW / W, availH / H) || 1;
+    const cssW = Math.max(1, Math.round(W * scale)), cssH = Math.max(1, Math.round(H * scale));
+    cv.width = Math.max(1, Math.round(cssW * d));
+    cv.height = Math.max(1, Math.round(cssH * d));
+    cv.style.width = cssW + 'px';
+    cv.style.height = cssH + 'px';
+    return;
+  }
+  const idealVW = Math.round((H * availW) / availH);
+  VW = Math.max(960, Math.min(1600, idealVW));
+  OX = (VW - 960) / 2;
+  const scaleH = availH / H;
+  const scaleW = availW / VW;
+  const scale = Math.min(scaleW, scaleH) || scaleH || 1;
+  const cssW = Math.max(1, Math.round(VW * scale));
+  const cssH = Math.max(1, Math.round(H * scale));
+  cv.width = Math.max(1, Math.round(VW * scale * d));
+  cv.height = Math.max(1, Math.round(H * scale * d));
+  cv.style.width = cssW + 'px';
+  cv.style.height = cssH + 'px';
+}
+window.addEventListener('resize', fit);
+window.addEventListener('orientationchange', fit);
+document.addEventListener('fullscreenchange', fit);
+document.addEventListener('webkitfullscreenchange', fit);
+fit();
 
 function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 function txt(s, x, y, o) { o = o || {}; ctx.font = `${o.w || 700} ${o.s || 16}px ${o.f || FONT_B}`; ctx.fillStyle = o.c || C.text; ctx.textAlign = o.a || 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(String(s), x, y); }

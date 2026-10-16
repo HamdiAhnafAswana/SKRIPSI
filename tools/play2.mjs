@@ -19,7 +19,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = createGameHTML();
 const raw = html.match(/<script>\r?\n([\s\S]*?)\r?\n<\/script>/)[1];
 const EXPORTS = `globalThis.__NC = { LEVELS, levelTotal, levelList, go, startLevel, scene: () => scene,
-  save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
+  save, persist, baseLevel, endLevel, mouse: () => mouse, btns: () => btns, inR,
   newFrame: () => { hoverBtn = false; btns = []; } };`;
 const js = raw.replace(/\}\)\(\);\s*$/, EXPORTS + '\n})();');
 
@@ -184,8 +184,7 @@ async function main() {
   ok('kontrak lengkap draw/down/move/up/exit/makeResult',
     ['draw', 'down', 'move', 'up', 'exit', 'makeResult'].every(k => typeof sc[k] === 'function'));
   ok('skor mulai 100', sc.score === 100, 'skor=' + sc.score);
-  ok('lv.quizzes tersedia untuk kuis', Array.isArray(sc.quizzes) && sc.quizzes.length >= 1, sc.quizzes.length + ' soal');
-  ok('lv.idx menunjuk level 2 (tombol Ulangi)', sc.idx === 1);
+  ok('langkah -> Sarung tangan', sc.step === 0, 'step=' + sc.step);
 
   console.log('\n== BRIEFING ANDI ==');
   ok('briefing tampil sebelum gameplay', sc.phase === 'brief', 'phase=' + sc.phase);
@@ -245,10 +244,8 @@ async function main() {
     'phase=' + (sc.test && sc.test.phase) + ' std=' + (sc.test && sc.test.std));
   click(TESTER_SEND.x, TESTER_SEND.y, '   klik KIRIM & NILAI');
   ok('kartu "Yang kamu pelajari" tampil', sc.modal === 'learn', 'modal=' + sc.modal);
-  click(LEARN_NEXT.x, LEARN_NEXT.y, '   klik Lanjut ke Kuis');
-  ok('masuk tahap kuis', sc.phase === 'quiz', 'phase=' + sc.phase);
-  frames(8);
-  ok('layar kuis tampil tanpa error', true);
+  click(LEARN_NEXT.x, LEARN_NEXT.y, '   klik Lihat Hasil');
+  ok('layar hasil dipanggil', sc.phase === 'fin' || (typeof sc.finished === 'boolean'), 'phase=' + sc.phase + ' finished=' + sc.finished);
 
   console.log('\n== SERET (drag) SEBAGAI CARA LAIN ==');
   sc = mulaiLevel();

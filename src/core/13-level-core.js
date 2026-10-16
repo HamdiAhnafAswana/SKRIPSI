@@ -4,7 +4,7 @@
 // ke index.html -- JANGAN diedit langsung di index.html.
 // ==========================================================================
 
-/* ---------- level dasar, HUD, kuis ---------- */
+/* ---------- level dasar, HUD ---------- */
 function baseLevel(n, title) {
     const lv = { n, title, score: 100, mistakes: [], t0: performance.now(), phase: 'play', finished: false, delay: 1300, dur: 0, finAt: 0, idx: n - 1 };
     lv.elapsed = () => (performance.now() - lv.t0) / 1000;
@@ -14,7 +14,9 @@ function baseLevel(n, title) {
     return lv;
 }
 function hud(lv) {
-    ctx.fillStyle = '#08111e'; ctx.fillRect(0, 0, W, 54); ctx.fillStyle = C.line; ctx.fillRect(0, 53, W, 1);
+    ctx.save(); ctx.translate(-OX, 0);
+    ctx.fillStyle = '#08111e'; ctx.fillRect(0, 0, VW, 54); ctx.fillStyle = C.line; ctx.fillRect(0, 53, VW, 1);
+    ctx.restore();
     txt('Level ' + lv.n, 18, 35, { s: 22, f: FONT_H, c: C.acc, w: 600 });
     txt(lv.title, 112, 34, { s: 15, c: C.text });
     btn(W - 92, 10, 78, 34, 'Menu', () => go(levelsScene), { color: '#334155', tc: C.text, s: 14 });
@@ -26,39 +28,6 @@ function hud(lv) {
     txt(lv.limit ? 'Sisa waktu' : 'Waktu', W - 192, 22, { s: 11, c: C.mute, a: 'right' });
     txt(lab, W - 192, 46, { s: 22, f: FONT_H, c: col, a: 'right', w: 600 });
 }
-function drawQuiz(lv) {
-    btns.length = 0;
-    ctx.fillStyle = 'rgba(4,10,20,.8)'; ctx.fillRect(0, 54, W, H - 54);
-    const x = 170, y = 130, w = 620, h = 350;
-    rr(x, y, w, h, 18); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.acc; ctx.lineWidth = 2; ctx.stroke();
-    const quizzes = lv.quizzes || (lv.quiz ? [lv.quiz] : []);
-    const q = quizzes[lv.quizIdx || 0];
-    if (!q) return;
-    txt('Pertanyaan ' + ((lv.quizIdx || 0) + 1) + ' dari ' + quizzes.length, x + w / 2, y + 40, { s: 24, f: FONT_H, c: C.acc, a: 'center', w: 600 });
-    para(q.q, x + w / 2, y + 80, w - 70, 24, { s: 17, a: 'center', c: C.text, w: 700 });
-    const fin = lv.phase === 'fin';
-    q.opts.forEach((o, i) => {
-        const by = y + 150 + i * 58; const right = i === q.ans;
-        let color = '#2b4360', tc = C.text, dis = fin;
-        if (lv.wrongPicks.includes(i)) { color = '#5b2530'; tc = '#f5b5bd'; dis = true; }
-        if (fin && right) { color = C.ok; tc = '#04160f'; }
-        btn(x + 30, by, w - 60, 46, o, () => quizPick(lv, i), { color, tc, disabled: false, s: 15 });
-        if (dis) { btns.pop(); }
-    });
-}
-function quizPick(lv, i) {
-    if (lv.phase !== 'quiz' && lv.phase !== 'fin') return;
-    const quizzes = lv.quizzes || (lv.quiz ? [lv.quiz] : []);
-    const q = quizzes[lv.quizIdx || 0];
-    if (!q) return;
-    if (i === q.ans) {
-        say('Benar. ' + q.why, 'ok');
-        lv.quizIdx = (lv.quizIdx || 0) + 1;
-        lv.wrongPicks = [];
-        if (lv.quizIdx >= quizzes.length) lv.win(2400);
-    } else { lv.wrongPicks.push(i); lv.penalize(10, 'Jawaban kuis kurang tepat'); }
-}
-
 /* ---------- akhir level, hasil, log ---------- */
 function endLevel(lv, ok) {
     if (!lv.dur) lv.dur = Math.round(lv.elapsed());

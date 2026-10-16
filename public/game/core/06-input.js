@@ -25,7 +25,14 @@ function drawToast() {
     L.forEach((l, i) => txt(l, x + w / 2, y + 24 + i * 20, { s: 15, a: 'center', c: C.text }));
     ctx.restore();
 }
-function P(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; }
+function P(e) {
+    const r = cv.getBoundingClientRect();
+    const scaleX = r.width / VW;
+    const scaleY = r.height / H;
+    const lx = (e.clientX - r.left) / scaleX - OX;
+    const ly = (e.clientY - r.top) / scaleY;
+    return { x: lx, y: ly, cx: e.clientX, cy: e.clientY };
+}
 cv.addEventListener('pointerdown', e => {
     e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (_) {}
     mouse = P(e);

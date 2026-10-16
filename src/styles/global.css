@@ -31,65 +31,142 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
-  background: var(--bg);
+  overflow: hidden;
+  background: #070f1a;
   color: var(--fg);
   font-family: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Panggung penuh layar: kanvas mendapat seluruh viewport, tanpa scroll. */
 .app {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 12px 12px 20px;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background:
+    radial-gradient(1200px 620px at 50% -12%, #122b46 0%, rgba(18, 43, 70, 0) 62%),
+    radial-gradient(820px 560px at 105% 112%, #0d2540 0%, rgba(13, 37, 64, 0) 58%),
+    #070f1a;
 }
 
+/* Header ringkas sebagai overlay supaya kanvas tetap memenuhi layar.
+   Hanya elemen interaktif (tombol layar penuh) yang menangkap klik. */
 .app-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px 16px;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  gap: 10px;
+  padding: 8px 12px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  pointer-events: none;
+}
+
+.app-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  min-width: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, .16);
+  background: rgba(9, 18, 30, .55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 .app-header h1 {
   font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
   font-weight: 600;
-  font-size: 19px;
+  font-size: 15px;
   margin: 0;
-  letter-spacing: .2px;
+  letter-spacing: .4px;
 }
 
 .app-header p {
   font-family: 'Nunito', system-ui, sans-serif;
-  font-weight: 600;
-  font-size: 12.5px;
-  color: var(--muted);
+  font-weight: 700;
+  font-size: 11px;
+  color: #8fa6bd;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.game-container {
+/* Tombol layar penuh (pojok kanan atas, tidak menutup elemen game). */
+.fs-btn {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, .22);
+  background: rgba(9, 18, 30, .6);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #cfe2f5;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+.fs-btn:hover {
+  background: rgba(17, 34, 54, .85);
+  border-color: rgba(56, 189, 248, .5);
+}
+
+.fs-btn .fs-ico {
+  font-size: 14px;
+}
+
+/* Panggung kanvas: mengisi seluruh viewport; sisa ruang = letterbox gelap. */
+.app-main {
+  position: absolute;
+  inset: 0;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
 }
 
 .game-container {
   position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: linear-gradient(180deg, #0a1524 0%, #070f1a 100%);
 }
 
+/* Ukuran tampilan diatur fit() (core/05-canvas.js). max-* hanya jaring
+   pengaman sebelum fit() pertama berjalan. */
 .game-container canvas {
   display: block;
-  width: auto;
+  flex: 0 0 auto;
   max-width: 100%;
-  height: auto;
-  max-height: calc(100vh - 150px);
-  aspect-ratio: 960 / 600;
-  margin: 0 auto;
-  border-radius: 14px;
-  border: 1px solid var(--line);
+  max-height: 100%;
+  border-radius: 10px;
   background: #0c1726;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, .10), 0 18px 50px rgba(0, 0, 0, .5);
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -104,18 +181,31 @@ body {
   pointer-events: none;
 }
 
+/* Teks kontrol diringkas menjadi overlay tipis di bawah kanvas. */
 .note {
-  margin: 10px 2px 0;
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.5;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(157, 178, 200, .9);
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(7, 15, 26, 0) 0%, rgba(7, 15, 26, .78) 100%);
 }
 
 .loading {
-  text-align: center;
-  padding: 40px;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 16px;
   color: var(--muted);
+  pointer-events: none;
 }
 
 /* ============================================================
@@ -129,7 +219,9 @@ body {
   inset: 0;
   z-index: 9999;
   display: flex;
-  align-items: center;
+  /* flex-start + margin:auto pada kartu = tetap terpusat, tapi tidak
+     terpotong di atas ketika isi lebih tinggi dari layar. */
+  align-items: flex-start;
   justify-content: center;
   padding: 16px;
   overflow-y: auto;
@@ -516,6 +608,32 @@ body {
 }
 
 /* ---------- responsif ---------- */
+
+/* Layar besar: kartu onboarding sedikit lebih lapang agar proporsional. */
+@media (min-width: 1100px) {
+  .sinova-card {
+    max-width: 720px;
+  }
+  .sinova-tutorial {
+    max-width: 840px;
+  }
+}
+
+/* Header/note ringkas di layar sempit. */
+@media (max-width: 760px) {
+  .app-header p {
+    display: none;
+  }
+  .fs-btn-label {
+    display: none;
+  }
+}
+
+@media (max-width: 820px), (max-height: 460px) {
+  .note {
+    display: none;
+  }
+}
 
 @media (max-width: 620px) {
   .sinova-card {

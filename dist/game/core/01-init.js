@@ -5,6 +5,7 @@
 // ==========================================================================
 
 const W = 960, H = 600;
+let VW = 960, OX = 0;
 const cv = document.getElementById('c');
 let ctx = cv.getContext('2d');
 const FONT_H = '"Fredoka","Nunito",system-ui,sans-serif', FONT_B = '"Nunito",system-ui,sans-serif';

@@ -24,7 +24,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = createGameHTML();
 const raw = html.match(/<script>\r?\n([\s\S]*?)\r?\n<\/script>/)[1];
 const EXPORTS = `globalThis.__NC = { LEVELS, levelTotal, levelList, go, startLevel, scene: () => scene,
-  save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
+  save, persist, baseLevel, endLevel, mouse: () => mouse, btns: () => btns, inR,
   newFrame: () => { hoverBtn = false; btns = []; } };`;
 const js = raw.replace(/\}\)\(\);\s*$/, EXPORTS + '\n})();');
 
@@ -118,7 +118,6 @@ async function run() {
     typeof lv.move === 'function' && typeof lv.up === 'function' &&
     typeof lv.exit === 'function' && typeof lv.makeResult === 'function');
   ok('skor mulai 100', lv.score === 100);
-  ok('bank kuis terisi 4 soal acak', Array.isArray(lv.quizzes) && lv.quizzes.length === 4);
 
   console.log('\n== BRIEFING ANDI ==');
   ok('briefing tampil sebelum gameplay', lv.phase === 'brief', 'phase=' + lv.phase);
@@ -129,29 +128,15 @@ async function run() {
   ok('level dibuka di layar pembuka', lv.phase === 'intro');
   // Klik tombol "MULAI MISI CROSSOVER ▸"
   click(480, 500, 'klik MULAI MISI CROSSOVER');
-  ok('fase masuk ke play dengan modal pilih kabel', lv.phase === 'play' && lv.modal === 'pick');
+  ok('fase masuk ke play tanpa modal pilih kabel', lv.phase === 'play' && lv.modal === null);
 
-  console.log('\n== LANGKAH 0: PILIH JENIS KABEL ==');
-  // Opsi di modal: A=Straight (idx 0), B=Crossover (idx 1), C=Rollover (idx 2), D=Coaxial (idx 3)
-  // Opsi A y: 116+72=188
-  click(300, 210, 'klik Straight-Through (sengaja salah)');
-  ok('salah jawab kena penalti -4', lv.score === 96, 'skor=' + lv.score);
-  ok('tetap di modal pilih kabel', lv.modal === 'pick');
-  ok('catatan firstPickCorrect menjadi false', lv.KAB.firstPickCorrect === false);
-  ok('penalti tercatat di mistakes', lv.mistakes.some(m => m.includes('Salah memilih kabel')));
-
-  // Sekarang klik Opsi B: Crossover (y: 116+64 + 72 = 252)
-  click(300, 275, 'klik Crossover (benar)');
-  ok('modal pilih kabel tertutup & lanjut ke sarung tangan', lv.modal === null && lv.step === 1);
-  ok('status cablePickDone menjadi true', lv.KAB.cablePickDone === true);
-
-  console.log('\n== LANGKAH 1: SARUNG TANGAN ==');
-  // Kartu Sarung Tangan: panel kiri (x=16..148, y=120..200)
+  console.log('\n== LANGKAH 0: SARUNG TANGAN ==');
+  // Langsung ke langkah pakai sarung (step 0 setelah intro tanpa pick modal)
   click(80, 160, 'klik Sarung Tangan');
   ok('animasi memakai sarung tangan berjalan', !!(lv.anim && lv.anim.type === 'glove'), lv.anim && lv.anim.type);
   await settle(lv);
   ok('sarung tangan aktif', lv.KAB.glove === true);
-  ok('langkah maju ke potong kabel', lv.step === 2);
+  ok('langkah maju ke potong kabel', lv.step === 1);
 
   console.log('\n== LANGKAH 2: POTONG KABEL 150 CM ==');
   // Kartu Pemotong Kabel (x=16..148, y=120+2*88 = 296..376)
@@ -161,14 +146,14 @@ async function run() {
   click(474, 276, 'pilih 150 cm (tepat)');
   await settle(lv);
   ok('panjang kabel tepat 150 cm', lv.KAB.usedCm === 150 && lv.KAB.lenChosen === true);
-  ok('langkah maju ke kupas Ujung A', lv.step === 3);
+  ok('langkah maju ke kupas Ujung A', lv.step === 2);
 
   console.log('\n== LANGKAH 3-7: UJUNG A (T568A) ==');
   // Kartu Pengupas Kabel (x=16..148, y=120+88 = 208..288)
   click(80, 240, 'klik Pengupas Kabel Ujung A');
   await settle(lv);
   ok('selubung Ujung A terkupas', lv.KAB.strippedA === true);
-  ok('langkah maju ke susun Ujung A', lv.step === 4);
+  ok('langkah maju ke susun Ujung A', lv.step === 3);
 
   // Susun 8 konduktor T568A ke slot 0..7
   // STD_A: ['wg', 'g', 'wo', 'b', 'wb', 'o', 'wbr', 'br']
@@ -181,32 +166,32 @@ async function run() {
     frame();
   }
   ok('slot Ujung A terisi 8/8 T568A', lv.KAB.slotsA.every((id, i) => id === stdA[i]));
-  ok('langkah maju ke ratakan Ujung A', lv.step === 5);
+  ok('langkah maju ke ratakan Ujung A', lv.step === 4);
 
   // Ratakan Ujung A (Pemotong kabel)
   click(80, 330, 'klik Pemotong Kabel untuk ratakan A');
   await settle(lv);
   ok('ujung kawat A sudah rata', lv.KAB.trimmedA === true);
-  ok('langkah maju ke pasang RJ-45 A', lv.step === 6);
+  ok('langkah maju ke pasang RJ-45 A', lv.step === 5);
 
   // Pasang RJ-45 Ujung A (panel kanan x=804..936, y=120..200)
   click(860, 160, 'klik Konektor RJ-45 A');
   await settle(lv);
   ok('konektor RJ-45 A terpasang', lv.KAB.connA === true);
-  ok('langkah maju ke crimp A', lv.step === 7);
+  ok('langkah maju ke crimp A', lv.step === 6);
 
   // Crimp Ujung A (panel kanan y=208..288)
   click(860, 240, 'klik Tang Crimping A');
   await settle(lv, 70);
   ok('Ujung A ter-crimp dan beralih ke Ujung B', lv.KAB.crimpedA === true && lv.KAB.end === 1);
-  ok('langkah maju ke kupas Ujung B', lv.step === 8);
+  ok('langkah maju ke kupas Ujung B', lv.step === 7);
 
   console.log('\n== LANGKAH 8-12: UJUNG B (T568B) ==');
   // Kupas Ujung B (Pengupas kabel panel kiri)
   click(80, 240, 'klik Pengupas Kabel Ujung B');
   await settle(lv);
   ok('selubung Ujung B terkupas', lv.KAB.strippedB === true);
-  ok('langkah maju ke susun Ujung B', lv.step === 9);
+  ok('langkah maju ke susun Ujung B', lv.step === 8);
 
   // Susun 8 konduktor T568B ke slot 0..7
   // STD_B: ['wo', 'o', 'wg', 'b', 'wb', 'g', 'wbr', 'br']
@@ -219,25 +204,25 @@ async function run() {
     frame();
   }
   ok('slot Ujung B terisi 8/8 T568B', lv.KAB.slotsB.every((id, i) => id === stdB[i]));
-  ok('langkah maju ke ratakan Ujung B', lv.step === 10);
+  ok('langkah maju ke ratakan Ujung B', lv.step === 9);
 
   // Ratakan Ujung B
   click(80, 330, 'klik Pemotong Kabel untuk ratakan B');
   await settle(lv);
   ok('ujung kawat B sudah rata', lv.KAB.trimmedB === true);
-  ok('langkah maju ke pasang RJ-45 B', lv.step === 11);
+  ok('langkah maju ke pasang RJ-45 B', lv.step === 10);
 
   // Pasang RJ-45 B
   click(860, 160, 'klik Konektor RJ-45 B');
   await settle(lv);
   ok('konektor RJ-45 B terpasang', lv.KAB.connB === true);
-  ok('langkah maju ke crimp B', lv.step === 12);
+  ok('langkah maju ke crimp B', lv.step === 11);
 
   // Crimp Ujung B
   click(860, 240, 'klik Tang Crimping B');
   await settle(lv, 70);
   ok('Ujung B ter-crimp sempurna', lv.KAB.crimpedB === true);
-  ok('langkah maju ke uji tester', lv.step === 13);
+  ok('langkah maju ke uji tester', lv.step === 12);
 
   console.log('\n== LANGKAH 13: LAN TESTER CROSSOVER ==');
   // Klik Tester (panel kanan y=296..376)
@@ -263,20 +248,11 @@ async function run() {
   frames(10);
   ok('simulasi PC ke PC tergambar dengan link aktif', lv.modal === 'pc');
   // Klik tombol "Lanjut ke Kuis & Rapor ▸" (x=480, y=520)
-  click(480, 520, 'klik Lanjut ke Kuis & Rapor');
-  ok('masuk tahap kuis', lv.phase === 'quiz');
+  click(480, 520, 'klik Lihat Rapor Praktikum');
+  ok('masuk modal Rapor Pemahaman', lv.modal === 'report');
 
-  console.log('\n== LANGKAH 15: KUIS & RAPOR PEMAHAMAN ==');
-  // Jawab 4 soal kuis
-  for (let q = 0; q < 4; q++) {
-    const curQ = lv.quizzes[lv.quizIdx];
-    ok('soal kuis ' + (q + 1) + ' tersedia', !!curQ);
-    NC.quizPick(lv, curQ.ans);
-    frame();
-  }
-  ok('kuis selesai dan masuk modal Rapor Pemahaman', lv.modal === 'report');
-
-  // Klik tombol "Lihat Skor & Papan Peringkat ▸" (x=480, y=525)
+  console.log('\n== LANGKAH 15: RAPOR PEMAHAMAN CROSSOVER ==');
+  // Modal report - klik tombol "Lihat Skor & Papan Peringkat ▸" (x=480, y=525) 
   click(480, 525, 'klik Lihat Skor & Papan Peringkat');
   for (let i = 0; i < 40; i++) {
     frame();

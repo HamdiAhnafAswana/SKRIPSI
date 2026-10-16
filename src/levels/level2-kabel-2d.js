@@ -9,7 +9,7 @@
    ------------------------------------------------------------------
    Murni 2D. Semua gambar memakai helper canvas yang sudah ada
    (rr, txt, para, btn, hit, say, deskBG, hud, icon, drawSprite,
-   drawWire, tickIcon, crossIcon, lock, drawAndiFace, quizPick, SND).
+   drawWire, tickIcon, crossIcon, lock, drawAndiFace, SND).
    TIDAK memakai Three.js / WebGL sama sekali, jadi level ini tetap
    jalan tanpa internet dan tanpa akselerasi grafis.
 
@@ -29,7 +29,7 @@
      5. Konektor RJ45  -> konektor meluncur turun, selubung ikut masuk
      6. Tang Crimping -> sprite tang turun & menekan konektor
      7. Tester         -> modal LAN TESTER, LED 1-8, kirim & nilai
-     -> kartu "Yang kamu pelajari" -> kuis (l2DrawQuiz) -> layar hasil
+     -> kartu "Yang kamu pelajari" -> layar hasil
 
    Catatan nama fungsi: semua fungsi di dalam level ini diberi prefiks l2…
    karena build.mjs mendeteksi duplikat "function NAMA(" secara global,
@@ -222,29 +222,6 @@ function makeL2() {
     lv.test = null; lv.helpFree = 1; lv.helpUntil = 0;
     lv.lastAct = performance.now();
     lv.modeMudah = !!save.l2.mudah;
-    lv.quizIdx = 0; lv.wrongPicks = [];
-    lv.quizzes = [
-        {
-            q: 'Pada standar T568B, warna di pin 1 adalah\u2026', ans: 0,
-            opts: ['Putih-Oranye', 'Oranye', 'Putih-Hijau', 'Biru'],
-            why: 'T568B selalu dimulai Putih-Oranye di pin 1 dan ditutup Coklat di pin 8.'
-        },
-        {
-            q: 'T568A dan T568B sama-sama sah untuk\u2026', ans: 0,
-            opts: ['Kabel straight-through PC ke switch', 'Kabel crossover PC ke PC', 'Kabel uplink ke router', 'Kabel luar ruangan'],
-            why: 'Ujung straight-through boleh T568A atau T568B, asal kedua ujung kabel memakai standar yang sama.'
-        },
-        {
-            q: 'Kenapa ujung konduktor harus diratakan sebelum masuk RJ-45?', ans: 1,
-            opts: ['Agar kabel jadi lebih panjang', 'Agar semua konduktor tepat menyentuh pin emas', 'Agar warna kabel lebih jelas', 'Agar kabel bisa dilipat'],
-            why: 'Konduktor yang terlalu panjang saling bersentuhan (short), yang terlalu pendek tidak menyentuh pin.'
-        },
-        {
-            q: 'Alat yang menekan kontak emas RJ-45 hingga menembus selubung konduktor adalah\u2026', ans: 1,
-            opts: ['Pengupas kabel', 'Tang crimping', 'Multimeter', 'Tang kombinasi'],
-            why: 'Tang crimping menekan kontak emas RJ-45 hingga menembus selubung konduktor.'
-        }
-    ];
 
     const l2Andi = (t, ms) => { lv.andiTip = t; lv.andiUntil = performance.now() + (ms || 9000); };
     function l2Flash(msg, kind) {
@@ -1261,8 +1238,10 @@ function makeL2() {
        MODAL
        ================================================================ */
     function l2Shade() {
-        ctx.fillStyle = 'rgba(3,9,18,.9)'; ctx.fillRect(0, 54, W, H - 54);
-        hit(0, 0, W, H, () => { });                     // penahan klik supaya tidak tembus
+        ctx.save(); ctx.translate(-OX, 0);
+        ctx.fillStyle = 'rgba(3,9,18,.9)'; ctx.fillRect(0, 54, VW, H - 54);
+        ctx.restore();
+        hit(-OX, 0, VW, H, () => { });                     // penahan klik supaya tidak tembus
     }
     function l2Panel(x, y, w, h, stroke) {
         rr(x, y, w, h, 18); ctx.fillStyle = 'rgba(12,23,39,.99)'; ctx.fill();
@@ -1415,9 +1394,10 @@ function makeL2() {
             tickIcon(x + 42, yy - 5, 12, '#04160f');
             para(t, x + 68, yy, w - 110, 17, { s: 13, c: C.text, w: 700 });
         });
-        btn(x + w / 2 - 120, y + h - 58, 240, 44, 'Lanjut ke Kuis \u25b8', () => {
-            lv.modal = null; lv.phase = 'quiz';
-            say('Kuis singkat: baca baik-baik, lalu pilih jawaban yang paling tepat.', 'info');
+        btn(x + w / 2 - 120, y + h - 58, 240, 44, 'Lihat Hasil \u25b8', () => {
+            lv.modal = null;
+            lv.finished = true;
+            endLevel(lv, true);
         }, { color: C.ok, s: 15 });
     }
 
@@ -1479,7 +1459,7 @@ function makeL2() {
         btn(x + w - 24 - bw, by, bw, 44, 'KIRIM & NILAI', () => {
             if (t.phase !== 'ok') return;
             lv.modal = 'learn';
-            say('Kabel terkirim. Baca ringkasan sebelum kuis.', 'ok');
+            say('Kabel terkirim. Baca ringkasan berikut ini.', 'ok');
         }, { color: C.ok, s: 13, disabled: t.phase !== 'ok' });
     }
 
@@ -1496,63 +1476,6 @@ function makeL2() {
             }
             l2ModalTester(now);
         }
-    }
-
-    /* ================================================================
-       KUIS (renderer sendiri: tinggi panel ikut isi, selalu di dalam layar)
-       ================================================================ */
-    function l2QuizSelesai() {
-        txt('Kuis selesai!', W / 2, 250, { s: 30, f: FONT_H, a: 'center', c: C.ok, w: 600 });
-        para('Menghitung hasil...', W / 2, 292, 620, 20, { s: 15, a: 'center', c: C.mute, w: 700 });
-        const a = (performance.now() / 240) % 6.2832;
-        ctx.save();
-        ctx.beginPath(); ctx.arc(W / 2, 336, 16, a, a + 2.2);
-        ctx.lineWidth = 4; ctx.strokeStyle = C.acc; ctx.lineCap = 'round'; ctx.stroke();
-        ctx.restore();
-    }
-    function l2DrawQuiz() {
-        ctx.fillStyle = 'rgba(4,10,20,.9)'; ctx.fillRect(0, 54, W, H - 54);
-        const quizzes = lv.quizzes || [];
-        if (lv.quizIdx >= quizzes.length) { l2QuizSelesai(); return; }
-        const q = quizzes[lv.quizIdx];
-        const PW = 660, PAD = 34;
-        const qL = wrapLines(q.q, PW - PAD * 2, 17, 700);
-        const oL = q.opts.map(function (o) { return wrapLines(o, PW - PAD * 2 - 44, 14.5, 700).slice(0, 2); });
-        const oH = oL.map(function (L) { return Math.max(40, L.length * 19 + 16); });
-        const h = 62 + qL.length * 24 + 22 + oH.reduce(function (a, b) { return a + b + 10; }, 0) + 14;
-        const x = (W - PW) / 2;
-        const y = clamp(54 + (H - 54 - h) / 2, 58, Math.max(58, H - 8 - h));
-        rr(x, y, PW, h, 18); ctx.fillStyle = C.panel; ctx.fill();
-        ctx.strokeStyle = C.acc; ctx.lineWidth = 2; ctx.stroke();
-        txt('Pertanyaan ' + (lv.quizIdx + 1) + ' dari ' + quizzes.length, x + PW / 2, y + 38,
-            { s: 22, f: FONT_H, c: C.acc, a: 'center', w: 600 });
-        qL.forEach(function (l, i) {
-            txt(l, x + PW / 2, y + 72 + i * 24, { s: 17, a: 'center', c: C.text, w: 700 });
-        });
-        const fin = lv.phase === 'fin';
-        let oy = y + 62 + qL.length * 24 + 22;
-        q.opts.forEach(function (o, i) {
-            const right = i === q.ans;
-            const wasWrong = lv.wrongPicks.indexOf(i) >= 0;
-            const dis = fin || wasWrong;
-            let color = '#2b4360', tc = C.text;
-            if (wasWrong) { color = '#5b2530'; tc = '#f5b5bd'; }
-            if (fin && right) { color = C.ok; tc = '#04160f'; }
-            const hh = oH[i];
-            rr(x + PAD, oy, PW - PAD * 2, hh, 12);
-            ctx.fillStyle = dis && !right && !wasWrong ? '#22344a' : color; ctx.fill();
-            ctx.lineWidth = wasWrong || (fin && right) ? 2.5 : 1.5;
-            ctx.strokeStyle = wasWrong ? '#f87171' : (fin && right ? C.ok : 'rgba(120,160,200,.4)');
-            ctx.stroke();
-            const nL = oL[i];
-            const ty0 = oy + hh / 2 - (nL.length - 1) * 9.5 + 5;
-            nL.forEach(function (l, k) {
-                txt(l, x + PW / 2, ty0 + k * 19, { s: 14.5, a: 'center', c: dis && !wasWrong ? '#5f7389' : tc, w: 700 });
-            });
-            if (wasWrong) crossIcon(x + PW - PAD - 20, oy + hh / 2, 15, '#fecaca');
-            if (!dis) hit(x + PAD, oy, PW - PAD * 2, hh, function () { quizPick(lv, i); if (lv.phase === 'fin') lv.delay = 800; });
-            oy += hh + 10;
-        });
     }
 
     /* ================================================================
@@ -1648,12 +1571,6 @@ function makeL2() {
 
         if (lv.phase === 'intro') { l2ModalIntro(); return; }
         hud(lv);
-        if (lv.phase === 'quiz' || lv.phase === 'fin') {
-            if (lv.finished) return;
-            btns.length = 0;
-            l2DrawQuiz();
-            return;
-        }
 
         if (lv.limit && !lv.finished && lv.phase === 'play' && lv.elapsed() > lv.limit) {
             lv.finished = true; lv.dur = lv.limit; endLevel(lv, false); return;

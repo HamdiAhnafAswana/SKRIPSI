@@ -17,7 +17,8 @@
 //       12 kotak hasil ping di panel kanan   13 dropdown dalam kanvas
 //       14 Andi ada di footer (tidak nontok) 15 dialog Andi di dalam footer
 //       16 Bantuan di dalam footer           17 kanvas -> CSS responsif ✓
-//  Mode responsif: RES=1024x600|1280x720|1366x768|480x800  (ujian CSS scaling)
+//  Mode responsif: RES=1920x1080|1366x768|390x844|1024x600|1280x720|480x800
+//  (ujian CSS scaling — kanvas mengisi viewport, letterbox gelap)
 // ============================================================================
 import fs from 'node:fs';
 import path from 'node:path';
@@ -42,7 +43,8 @@ if (!CHROME) { console.log('Chrome/Edge tidak ditemukan'); process.exit(1); }
 
 /* ------------------------------------------------------------------ layout */
 // Mode biasa: kanvas pas 960x600 di tengah jendela (pemeriksaan isi level).
-// Mode responsif: CSS meniru src/styles/global.css (aspect-ratio + max-height).
+// Mode responsif: CSS meniru src/styles/global.css (panggung 100vw x 100dvh,
+// kanvas diukur oleh fit() di core/05-canvas.js, letterbox gelap).
 const RES = process.env.RES;
 let WIN_W = 960, WIN_H = 626 + 120;
 let PIN = `<style>
@@ -55,15 +57,15 @@ let PIN = `<style>
 </style>`;
 if (RES) {
   const [w, h] = RES.split('x').map(Number);
-  WIN_W = w; WIN_H = h + 120;
+  WIN_W = w; WIN_H = h;
   PIN = `<style>
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0;background:#eaf0f7}
-  body{max-width:1000px;margin:0 auto;padding:12px 12px 20px;display:flex;justify-content:center;align-items:flex-start}
-  #nama{display:none}
+  html,body{margin:0;padding:0;height:100%;width:100%;overflow:hidden;background:#070f1a}
+  body{display:flex;align-items:center;justify-content:center}
+  #nama{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
   header,.note{display:none}
-  canvas{display:block;width:auto;max-width:100%;height:auto;max-height:calc(100vh - 150px);aspect-ratio:960/600;margin:0 auto;border-radius:14px;border:1px solid #cfd9e5;background:#0c1726}
-  #__st{position:absolute;left:0;top:600px;width:960px;height:26px;background:#000}
+  canvas{display:block;background:#0c1726;border-radius:10px;touch-action:none}
+  #__st{position:fixed;left:-9999px;top:0;width:960px;height:26px;background:#000}
 </style>`;
 }
 
@@ -149,7 +151,7 @@ const DRIVER = (scenario) => `
   A.push(BAR.x + BAR.w - 104 >= BAR.x && BAR.y + 17 + 30 <= BAR.y + BAR.h);
   // 17 kanvas responsif: sepenuhnya di dalam viewport (tanpa terpotong), rasio 16:10 dipertahankan
   { const r = cv.getBoundingClientRect(); const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
-    A.push(r.left >= -0.5 && r.right <= vw + 0.5 && r.height <= vh - 40 && Math.abs(r.width / r.height - 960 / 600) < 0.03); }
+    A.push(r.left >= -0.5 && r.right <= vw + 0.5 && r.top >= -0.5 && r.bottom <= vh + 0.5 && Math.abs(r.width / r.height - 960 / 600) < 0.03); }
   }
   A.forEach((v, i) => cells[10 + i] = v ? '#2f9e44' : '#e03131');
   // 20 Level 4 benar-benar tuntas (bintang tersimpan)
@@ -183,7 +185,7 @@ const SCENES = {
 /* ------------------------------------------------------------------ render */
 const game = createGameHTML();
 const EXPORTS = `globalThis.__NC = { W, H, LEVELS, levelTotal, levelList, go, startLevel,
-  scene: () => scene, save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
+  scene: () => scene, save, persist, baseLevel, endLevel, mouse: () => mouse, btns: () => btns, inR,
   newFrame: () => { hoverBtn = false; btns = []; } };`;
 const js = ('window.requestAnimationFrame = () => 0;\n'
   + 'window.setTimeout = (f, t) => { if (t && t >= 5000) return setTimeout(f, t); f(); return 0; };\n'

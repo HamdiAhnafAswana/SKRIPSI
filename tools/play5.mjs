@@ -1,21 +1,18 @@
 // ============================================================================
-//  UJI INTERAKSI LEVEL 5  --  node tools/play5.mjs
+//  UJI INTERAKSI LEVEL 5 (CROSSOVER PC -> PC)  --  node tools/play5.mjs
 //
-//  Menjalankan game di Node (stub DOM/canvas) dan memainkan Level 5
-//  "Instalasi Rack Server" dari awal sampai layar hasil:
-//   - Kontrak level & inisialisasi (5 perangkat)
-//   - Seret 5 perangkat ke slot rak yang benar (UPS paling bawah,
-//     patch panel paling atas, switch di atas router)
-//   - Cek Susunan Rack -> semua aturan terpenuhi
-//   - Sambungan salah (router langsung ke patch panel) -> penalti
-//   - Sambungkan 4 kabel sesuai topologi (router-sw, sw-server,
-//     sw-patch, ups-server)
-//   - Kuis susunan rack -> jawab benar -> layar hasil
+//  Menjalankan game sungguhan di Node (stub DOM/canvas) dan memainkan Level 5
+//  "Teknologi Jaringan Lanjutan: Kabel Crossover PC -> PC" dari briefing
+//  sampai layar hasil:
 //
-//  Membuktikan rendering baru (drawDevice detail: ventilasi, LED,
-//  sekrup) tidak mengubah mekanisme penempatan & koneksi Level 5.
+//   Skenario 1  Pilih kabel STRAIGHT (salah) -> ditolak untuk PC ke PC
+//   Skenario 2  Pilih kabel CROSSOVER -> seret ke PC1 -> PC2 -> link aktif
+//   Skenario 3  Konfigurasi IP -> ping PC2 berhasil
+//   Skenario 4  Modal ping sukses -> "Lihat Hasil" -> layar hasil & RAPOR
+//
+//  Plus: validasi kabel (straight ditolak), kabel dinamis (drag & lepas),
+//  dan penyimpanan hasil (best/stars/board5/log/lencana).
 // ============================================================================
-import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +22,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = createGameHTML();
 const raw = html.match(/<script>\r?\n([\s\S]*?)\r?\n<\/script>/)[1];
 const EXPORTS = `globalThis.__NC = { LEVELS, levelTotal, levelList, go, startLevel, scene: () => scene,
-  save, persist, baseLevel, endLevel, quizPick, mouse: () => mouse, btns: () => btns, inR,
+  save, persist, baseLevel, endLevel, mouse: () => mouse, btns: () => btns, inR,
   newFrame: () => { hoverBtn = false; btns = []; } };`;
 const js = raw.replace(/\}\)\(\);\s*$/, EXPORTS + '\n})();');
 
@@ -91,113 +88,94 @@ function click(x, y, label) {
   if (label) ok(label, true);
   return !!hitFn;
 }
-
-// geometri rak Level 5 (RX=340, RY=70, U=40, N=12, RW=280)
-const RX = 340, RY = 70, U = 40, N = 12, RW = 280;
-const slotY = (slot, u) => RY + (N - slot - u) * U;         // puncak perangkat di slot
-const dotXY = (d, k) => {                                     // dotPos(d, k)
-  const r = d.slot != null
-    ? { x: RX, y: slotY(d.slot, d.u), h: d.u * U }
-    : { x: 20, y: d.ty, h: d.u * U };
-  return { x: r.x + RW - 16 - k * 22, y: r.y + r.h / 2 };
-};
-
-let lv = null;
-// seret perangkat dari home ke slot rak (offY = u*U/2)
-function dragDevice(d, slot) {
-  const x0 = 60, y0 = d.ty + d.u * U / 2;
+function drag(x0, y0, x1, y1, label) {
+  const sc = NC.scene();
   NC.mouse().x = x0; NC.mouse().y = y0;
   frame();
-  lv.down({ x: x0, y: y0 });
+  if (sc.down) sc.down({ x: x0, y: y0 });
   frame();
-  const ty = slotY(slot, d.u);
-  NC.mouse().x = RX + RW / 2; NC.mouse().y = ty + d.u * U / 2;
+  NC.mouse().x = x1; NC.mouse().y = y1;
+  if (sc.move) sc.move({ x: x1, y: y1 });
   frame();
-  lv.up({ x: RX + RW / 2, y: ty + d.u * U / 2 });
+  if (sc.up) sc.up({ x: x1, y: y1 });
   frame();
+  if (label) ok(label, true);
 }
-function clickDot(d, k, label) {
-  const q = dotXY(d, k);
-  click(q.x, q.y, label);
-}
+
+/* ---- koordinat (lihat levels/level5-crossover.js) ---- */
+const TRAY_STRAIGHT = { x: 102, y: 190 };   // kartu kabel straight (CABLE_ROWS[0])
+const TRAY_CROSSOVER = { x: 102, y: 244 };  // kartu kabel crossover (CABLE_ROWS[1])
+const PC1 = { x: 306, y: 148 };             // pusat PC1
+const PC2 = { x: 634, y: 148 };             // pusat PC2
+const DROPDOWN = { pc1: 114, pc2: 166, subnet: 218 };
+const OPT = (key, i) => ({ x: 848, y: DROPDOWN[key] + 34 + i * 30 + 14 });
+const BTN_PING_PC2 = { x: 848, y: 310 };    // tombol Ping PC2 di panel kanan
+const BTN_LANJUT_HASIL = { x: 480, y: 338 };// tombol "Lihat Hasil" di modal ping sukses
 
 async function run() {
   console.log('== KONTRAK & INISIALISASI LEVEL 5 ==');
   NC.save.teacher = true;
-  NC.startLevel(4); // Level 5 (0-indexed = 4) — Instalasi Rack Server
-  lv = NC.scene();
+  NC.startLevel(4); // Level 5 (0-indexed = 4)
+  const lv = NC.scene();
   ok('scene terbentuk & punya draw', typeof lv.draw === 'function');
   ok('kontrak draw/down/up',
     typeof lv.draw === 'function' && typeof lv.down === 'function' &&
     typeof lv.up === 'function');
-  ok('5 perangkat terdaftar', lv.devs.length === 5, lv.devs.map(d => d.id).join(','));
-  ok('fase awal place', lv.phase === 'place', 'phase=' + lv.phase);
-  ok('belum ada sambungan', lv.links.length === 0);
+  ok('2 kabel (straight + crossover)', lv.cables.length === 2 &&
+    lv.cables.some(c => c.type === 'straight') && lv.cables.some(c => c.type === 'crossover'));
+  ok('boardKey menunjuk board5', lv.boardKey === 'board5', 'boardKey=' + lv.boardKey);
+  ok('skor mulai 100', lv.score === 100, 'skor=' + lv.score);
+  ok('mulai dari briefing', lv.phase === 'brief', 'phase=' + lv.phase);
 
-  console.log('\n== SERET PERANGKAT KE RAK (SUSUNAN BENAR) ==');
-  // slot benar: patch=11 (atas), sw=10, router=9, server=7 (u=2), ups=5 (u=2, bawah)
-  const PLAN = [['patch', 11], ['sw', 10], ['router', 9], ['server', 7], ['ups', 5]];
-  const byId = id => lv.devs.find(d => d.id === id);
-  PLAN.forEach(([id, slot]) => {
-    const d = byId(id);
-    dragDevice(d, slot);
-    ok(d.n + ' -> slot ' + slot, d.slot === slot, 'slot=' + d.slot);
-  });
-  ok('semua perangkat di rack', lv.devs.every(d => d.slot != null));
-  ok('perangkat tidak saling menembus',
-    PLAN.every(([id, s]) => {
-      const d = byId(id);
-      return lv.devs.every(o => o === d || o.slot == null ||
-        !(s < o.slot + o.u && o.slot < s + d.u));
-    }));
+  console.log('\n== BRIEFING ==');
+  for (let i = 0; i < 10; i++) click(695, 441);
+  click(637, 504, 'klik Mulai Misi');
+  ok('masuk fase pemasangan kabel', lv.phase === 'play', 'phase=' + lv.phase);
 
-  console.log('\n== CEK SUSUNAN RACK ==');
-  click(821, 516, 'klik Cek Susunan Rack');                   // btn (716..926, 494..538)
-  ok('susunan dinyatakan benar (4 aturan terpenuhi)',
-    lv.ruleOk && lv.ruleOk.length === 4 && lv.ruleOk.every(Boolean),
-    JSON.stringify(lv.ruleOk));
-  ok('fase masuk cable', lv.phase === 'cable', 'phase=' + lv.phase);
+  console.log('\n== SKENARIO 1: KABEL STRAIGHT DITOLAK ==');
+  drag(TRAY_STRAIGHT.x, TRAY_STRAIGHT.y, PC1.x, PC1.y, 'seret kabel straight ke PC1');
+  ok('kabel straight ditolak untuk PC ke PC', lv.cables[0].pc === null && lv.cables[0].port === null,
+    'pc=' + lv.cables[0].pc + ' port=' + lv.cables[0].port);
+  ok('feedback kabel salah tampil', !!lv.flash && /crossover/i.test(lv.flash.msg), lv.flash && lv.flash.msg);
 
-  console.log('\n== SAMBUNGAN TIDAK ADA DI TOPOLOGI -> PENALTI ==');
-  clickDot(byId('router'), 0, 'klik port Router');
-  clickDot(byId('patch'), 0, 'klik port Patch Panel (salah)');
-  ok('sambungan router-patch ditolak', lv.links.length === 0, 'links=' + lv.links.length);
-  ok('penalti + penjelasan jalur lewat switch tercatat',
-    lv.mistakes.some(m => m.indexOf('Patch panel tidak langsung ke router') >= 0),
-    'skor=' + lv.score);
+  console.log('\n== SKENARIO 2: KABEL CROSSOVER -> PC1 -> PC2 ==');
+  drag(TRAY_CROSSOVER.x, TRAY_CROSSOVER.y, PC1.x, PC1.y, 'seret kabel crossover ke PC1');
+  ok('kabel crossover tersambung ke PC1', lv.cables[1].pc === 'pc1', 'pc=' + lv.cables[1].pc);
+  const free = lv.cables[1].free || PC1;
+  drag(free.x, free.y, PC2.x, PC2.y, 'seret ujung lain ke PC2');
+  ok('kabel crossover tersambung ke PC2', lv.cables[1].port === 'pc2', 'port=' + lv.cables[1].port);
+  await wait(1100); frames(3);
+  ok('link aktif di kedua PC', lv.PCS[0].linkLED === true && lv.PCS[1].linkLED === true,
+    'pc1=' + lv.PCS[0].linkLED + ' pc2=' + lv.PCS[1].linkLED);
 
-  console.log('\n== SAMBUNGKAN 4 KABEL SESUAI TOPOLOGI ==');
-  const CONN = [['router', 0, 'sw', 0], ['sw', 1, 'server', 0], ['sw', 2, 'patch', 0], ['ups', 0, 'server', 1]];
-  CONN.forEach(([a, ka, b, kb]) => {
-    clickDot(byId(a), ka, 'klik port ' + a + ' #' + (ka + 1));
-    clickDot(byId(b), kb, 'klik port ' + b + ' #' + (kb + 1));
-    ok('tersambung ' + a + ' - ' + b,
-      lv.links.some(l => l.key === [a, b].sort().join('|')),
-      'links=' + lv.links.length);
-  });
-  ok('4 sambungan terbentuk', lv.links.length === 4);
-  ok('port terpakai ditandai', lv.devs.every(d => d.used.filter(Boolean).length >= 1));
-  ok('fase cabled', lv.phase === 'cabled', 'phase=' + lv.phase);
+  console.log('\n== SKENARIO 3: KONFIGURASI IP & PING ==');
+  click(848, DROPDOWN.pc1, 'buka dropdown IP PC1');
+  click(OPT('pc1', 0).x, OPT('pc1', 0).y, 'pilih IP PC1');
+  click(848, DROPDOWN.pc2, 'buka dropdown IP PC2');
+  click(OPT('pc2', 0).x, OPT('pc2', 0).y, 'pilih IP PC2');
+  click(848, DROPDOWN.subnet, 'buka dropdown Subnet');
+  click(OPT('subnet', 0).x, OPT('subnet', 0).y, 'pilih Subnet');
+  ok('IP terkonfigurasi', !!(lv.ipConfig.pc1 && lv.ipConfig.pc2 && lv.ipConfig.subnet),
+    lv.ipConfig.pc1 + ' / ' + lv.ipConfig.pc2 + ' / ' + lv.ipConfig.subnet);
+  click(BTN_PING_PC2.x, BTN_PING_PC2.y, 'klik Ping PC2');
+  ok('ping berhasil', lv.pingResult === 'ok', 'ping=' + lv.pingResult);
+  ok('pingPc2 ditandai', lv.pingPc2 === true);
+  await wait(1100); frames(3);
+  ok('modal "Jaringan berhasil terhubung!" muncul', lv.phase === 'pingSuccess' && lv.modal === 'pingSuccess',
+    'phase=' + lv.phase + ' modal=' + lv.modal);
 
-  console.log('\n== TUNGGU KUIS ==');
-  await wait(1500);
-  frames(3);
-  ok('fase masuk quiz', lv.phase === 'quiz', 'phase=' + lv.phase);
-
-  console.log('\n== JAWAB KUIS ==');
-  const q = lv.quiz;
-  ok('soal kuis tersedia (3 pilihan)', !!q && q.opts.length === 3, q ? q.opts.length + ' opsi' : 'null');
-  click(480, 303 + q.ans * 58, 'jawab benar: "' + q.opts[q.ans] + '"');
-  ok('jawaban benar diterima', lv.phase === 'fin', 'phase=' + lv.phase);
-
-  console.log('\n== TUNGGU LAYAR HASIL ==');
-  await wait(2600);
-  frames(6);
+  console.log('\n== SKENARIO 4: LIHAT HASIL -> LAYAR RAPOR ==');
+  click(BTN_LANJUT_HASIL.x, BTN_LANJUT_HASIL.y, 'klik Lihat Hasil');
+  for (let i = 0; i < 40; i++) { frame(); await wait(50); if (lv.finished) break; }
   ok('level selesai (finished)', lv.finished === true, 'finished=' + lv.finished);
-  ok('skor tersimpan di save.best[6]', (NC.save.best[6] || 0) === lv.score, 'best=' + NC.save.best[6]);
-  ok('bintang tersimpan', (NC.save.stars[6] || 0) >= 1, 'stars=' + NC.save.stars[6]);
-  ok('log level 5 tersimpan', NC.save.log.some(e => e.level === 5 && e.hasil === 'Lulus'));
   ok('scene berpindah ke layar hasil', NC.scene() !== lv);
+  ok('skor tersimpan di save.best[4]', (NC.save.best[4] || 0) === lv.score, 'best=' + NC.save.best[4]);
+  ok('bintang tersimpan', (NC.save.stars[4] || 0) >= 1, 'stars=' + NC.save.stars[4]);
+  ok('papan skor board5 terisi', Array.isArray(NC.save.board5) && NC.save.board5.length >= 1,
+    'board5=' + (NC.save.board5 || []).length);
+  ok('log level 5 tersimpan', NC.save.log.some(e => e.level === 5 && e.hasil === 'Lulus'));
+  ok('lencana "Direct Connection" tercatat', (lv.logExtra.lencana || '').includes('Direct Connection'),
+    'lencana=' + lv.logExtra.lencana);
 
   console.log('\n== RINGKASAN TEST PLAY5 ==');
   console.log('frame digambar : ' + drawn);

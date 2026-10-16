@@ -33,7 +33,7 @@
      12. Crimp ujung B
      13. Uji dengan LAN Tester Crossover (Master & Remote, pola silang 1↔3 & 2↔6)
      14. Adegan penutup: PC ke PC langsung, link LED aktif, animasi file sharing
-     15. Kuis (4 dari bank 6 soal) + Rapor Pemahaman Crossover
+     15. Rapor Pemahaman Crossover
      -> Layar Hasil & Papan Skor Level 3 (board3)
 
    Semua fungsi di file ini memakai awalan l3... untuk mencegah duplikasi nama.
@@ -119,7 +119,6 @@ function makeL3() {
        ALUR LANGKAH & INSTRUKSI PEDAGOGIS (PAK ANDI)
        ================================================================ */
     const STEPS = [
-        { id: 'pick', label: '0. Pilih jenis kabel yang tepat', tool: null },
         { id: 'glove', label: '1. Pakai sarung tangan', tool: 'sarung_tangan' },
         { id: 'len', label: '2. Potong kabel ±150 cm', tool: 'gunting' },
         { id: 'strip_a', label: '3. Kupas selubung Ujung A', tool: 'strip' },
@@ -136,11 +135,6 @@ function makeL3() {
     ];
 
     const PED = {
-        pick: [
-            'Pilih jenis kabel yang tepat pada modal pertanyaan di layar.',
-            'Dua perangkat sejenis (PC ke PC) butuh jalur TX dan RX yang disilang.',
-            'Jangan memilih Straight-Through untuk menghubungkan dua PC langsung tanpa switch.'
-        ],
         glove: [
             'Klik kartu Sarung Tangan di panel ALAT kiri.',
             'Kawat tembaga dan pisau pengupas tajam; lindungi jemari sebelum bekerja.',
@@ -209,7 +203,6 @@ function makeL3() {
     };
 
     const HINT = {
-        pick: 'Pilih opsi "Crossover" pada modal pertanyaan untuk menghubungkan 2 PC langsung.',
         glove: 'Kartu "Sarung Tangan" di panel ALAT kiri, titik merah menyala.',
         len: 'Kartu "Pemotong Kabel" di panel ALAT: pilih panjang 150 cm.',
         strip_a: 'Kartu "Pengupas Kabel" di panel ALAT untuk mengupas selubung Ujung A.',
@@ -231,14 +224,12 @@ function makeL3() {
     };
 
     const curStep = () => STEPS[lv.step];
-    const ped = () => PED[curStep().id] || PED.pick;
+    const ped = () => PED[curStep().id] || PED.glove;
 
     /* ================================================================
        KEADAAN KABEL & SIMULASI
        ================================================================ */
     const KAB = {
-        cablePickDone: false,
-        firstPickCorrect: true,
         /* Siklus pemakaian sarung tangan (lihat l3Tangan / l3ActGlove):
            gloveSelected / gloveEquipping / glovesEquipped, dengan `glove`
            sebagai alias lama yang dipakai uji & status. */
@@ -303,56 +294,6 @@ function makeL3() {
     lv.helpUntil = 0;
     lv.lastAct = performance.now();
     lv.modeMudah = !!save.l2.mudah;
-    lv.quizIdx = 0;
-    lv.wrongPicks = [];
-
-    // Bank Soal Kuis Crossover (minimal 6 soal komprehensif)
-    const QUIZ_BANK = [
-        {
-            q: 'Ujung A pada kabel crossover standar TIA/EIA umumnya memakai urutan warna...',
-            ans: 0,
-            opts: ['T568A', 'T568B', 'Rollover', 'Cross-pin bebas'],
-            why: 'Standar crossover menetapkan Ujung A memakai T568A dan Ujung B memakai T568B.'
-        },
-        {
-            q: 'Pada kabel crossover 10/100 Mbps, pin berapa saja yang saling bertukar pasangan (TX dan RX)?',
-            ans: 1,
-            opts: ['Pin 1↔2 dan 3↔6', 'Pin 1↔3 dan 2↔6', 'Pin 4↔5 dan 7↔8', 'Pin 1↔8 dan 2↔7'],
-            why: 'Pin 1 bertukar dengan pin 3 (TX+ ke RX+), dan pin 2 bertukar dengan pin 6 (TX- ke RX-).'
-        },
-        {
-            q: 'Skenario manakah yang secara tradisional memerlukan kabel crossover?',
-            ans: 2,
-            opts: ['Komputer ke Switch', 'Switch ke Router', 'Komputer ke Komputer langsung tanpa switch', 'Access Point ke Switch'],
-            why: 'Kabel crossover menghubungkan dua perangkat sejenis (DTE ke DTE) agar sinyal kirim masuk ke penerima.'
-        },
-        {
-            q: 'Mengapa perangkat jaringan modern sering kali tidak lagi memerlukan kabel crossover untuk PC ke PC?',
-            ans: 1,
-            opts: ['Kabel straight lebih kuat', 'Perangkat modern memiliki fitur Auto MDI-X otomatis', 'Tegangan port LAN sudah dinaikkan', 'Menggunakan protokol nirkabel'],
-            why: 'Fitur Auto MDI-X pada port Ethernet modern otomatis mendeteksi dan membalik jalur transmisi.'
-        },
-        {
-            q: 'Jika Ujung A (Master) menyalakan LED 1, 2, 3, 6, bagaimana pola LED Remote pada kabel crossover yang benar?',
-            ans: 0,
-            opts: ['Menyala 3, 6, 1, 2', 'Menyala 1, 2, 3, 6', 'Menyala 8, 7, 6, 5', 'Menyala 2, 1, 6, 3'],
-            why: 'Master 1➔Remote 3, Master 2➔Remote 6, Master 3➔Remote 1, dan Master 6➔Remote 2.'
-        },
-        {
-            q: 'Apa perbedaan mendasar antara kabel straight-through dan crossover?',
-            ans: 1,
-            opts: [
-                'Straight memakai 4 kawat, Crossover memakai 8 kawat',
-                'Straight memakai standar sama di kedua ujung (A-A / B-B), Crossover berbeda (A-B)',
-                'Straight hanya untuk internet lambat, Crossover untuk gigabit',
-                'Straight memakai RJ-45, Crossover memakai RJ-11'
-            ],
-            why: 'Straight-through memakai standar sama di kedua ujung, sedangkan crossover memakai T568A di satu ujung dan T568B di ujung lainnya.'
-        }
-    ];
-
-    // Acak 4 soal dari bank kuis
-    lv.quizzes = shuffle(QUIZ_BANK.slice()).slice(0, 4);
 
     const l3Andi = (t, ms) => { lv.andiTip = t; lv.andiUntil = performance.now() + (ms || 9000); };
     function l3Flash(msg, kind) { lv.flash = { msg: msg, kind: kind || 'info', t: performance.now() }; }
@@ -380,28 +321,6 @@ function makeL3() {
     function l3CableTop(now) {
         if (lv.anim && lv.anim.type === 'conn') return lerp(WIRE_B, JACK_UP, easeOut(l3AnimP(now, 'conn')));
         return curConn() ? JACK_UP : WIRE_B;
-    }
-
-    /* ================================================================
-       0 — PILIH JENIS KABEL (MODAL SKENARIO AWAL)
-       ================================================================ */
-    function l3PilihKabel(idx) {
-        // Opsi: 0 = Straight-Through, 1 = Crossover, 2 = Rollover, 3 = Coaxial
-        if (idx === 1) { // BENAR: Crossover
-            KAB.cablePickDone = true;
-            lv.modal = null;
-            SND.benar();
-            l3Flash('Tepat! Kabel Crossover menukar jalur TX dan RX antar 2 PC.', 'ok');
-            l3Andi('Bagus sekali! PC ke PC langsung butuh Crossover. Sekarang pakai sarung tangan untuk memulai pekerjaan.');
-            l3Step(); // Lanjut ke langkah 1 (glove)
-        } else {
-            KAB.firstPickCorrect = false;
-            const namaOpsi = ['Straight-Through', 'Crossover', 'Rollover', 'Coaxial'][idx];
-            lv.penalize(4, 'Salah memilih kabel: ' + namaOpsi);
-            SND.salah();
-            l3Flash('Salah! ' + namaOpsi + ' tidak cocok untuk PC ke PC langsung tanpa switch.', 'bad');
-            l3Andi('Perhatikan: Dua PC adalah perangkat sejenis (DTE). Jika memakai Straight-through, pin TX PC 1 akan bertabrakan dengan pin TX PC 2! Pilih Crossover.');
-        }
     }
 
     /* ================================================================
@@ -797,7 +716,7 @@ function makeL3() {
             KAB.end = 0;
             KAB.slotsA = new Array(8).fill(null);
             KAB.trimmedA = false; KAB.connA = false; KAB.crimpedA = false;
-            lv.step = 4; // kembali ke susun Ujung A
+            lv.step = 3; // kembali ke susun Ujung A
             l3InitAnchors(KAB.looseA);
             WIRE_IDS.forEach(function (id) { KAB.mov[id] = null; });
             l3Flash('Konektor A dipotong (RJ-45 +1). Susun ulang Ujung A sebagai T568A.', 'bad');
@@ -806,7 +725,7 @@ function makeL3() {
             KAB.end = 1;
             KAB.slotsB = new Array(8).fill(null);
             KAB.trimmedB = false; KAB.connB = false; KAB.crimpedB = false;
-            lv.step = 9; // kembali ke susun Ujung B
+            lv.step = 8; // kembali ke susun Ujung B
             l3InitAnchors(KAB.looseB);
             WIRE_IDS.forEach(function (id) { KAB.mov[id] = null; });
             l3Flash('Konektor B dipotong (RJ-45 +1). Susun ulang Ujung B sebagai T568B.', 'bad');
@@ -1372,14 +1291,14 @@ function makeL3() {
 
     /* Panel Alat & Pasang */
     const TOOLS_L = [
-        { id: 'sarung_tangan', name: 'Sarung Tangan', checkStep: () => lv.step === 1 },
-        { id: 'strip', name: 'Pengupas Kabel', checkStep: () => lv.step === 3 || lv.step === 8 },
-        { id: 'gunting', name: 'Pemotong Kabel', checkStep: () => lv.step === 2 || lv.step === 5 || lv.step === 10 }
+        { id: 'sarung_tangan', name: 'Sarung Tangan', checkStep: () => lv.step === 0 },
+        { id: 'strip', name: 'Pengupas Kabel', checkStep: () => lv.step === 2 || lv.step === 7 },
+        { id: 'gunting', name: 'Pemotong Kabel', checkStep: () => lv.step === 1 || lv.step === 4 || lv.step === 9 }
     ];
     const TOOLS_R = [
-        { id: 'rj45', name: 'Konektor RJ-45', checkStep: () => lv.step === 6 || lv.step === 11 },
-        { id: 'crimp', name: 'Tang Crimping', checkStep: () => lv.step === 7 || lv.step === 12 },
-        { id: 'tester', name: 'Tester LAN', checkStep: () => lv.step === 13 }
+        { id: 'rj45', name: 'Konektor RJ-45', checkStep: () => lv.step === 5 || lv.step === 10 },
+        { id: 'crimp', name: 'Tang Crimping', checkStep: () => lv.step === 6 || lv.step === 11 },
+        { id: 'tester', name: 'Tester LAN', checkStep: () => lv.step === 12 }
     ];
 
     function l3DrawPanelAlat(P, list, title) {
@@ -1421,23 +1340,23 @@ function makeL3() {
         const id = t.id;
 
         if (id === 'sarung_tangan') {
-            if (lv.step === 1) l3ActGlove();
+            if (lv.step === 0) l3ActGlove();
             else l3Flash('Sarung tangan sudah dipakai.', 'info');
         } else if (id === 'strip') {
-            if (lv.step === 3 || lv.step === 8) l3ActStrip();
+            if (lv.step === 2 || lv.step === 7) l3ActStrip();
             else lv.penalize(2, 'Pengupas Kabel belum/bukan waktunya digunakan');
         } else if (id === 'gunting') {
-            if (lv.step === 2) l3ActCut();
-            else if (lv.step === 5 || lv.step === 10) l3ActTrim();
+            if (lv.step === 1) l3ActCut();
+            else if (lv.step === 4 || lv.step === 9) l3ActTrim();
             else lv.penalize(2, 'Pemotong Kabel belum waktunya digunakan');
         } else if (id === 'rj45') {
-            if (lv.step === 6 || lv.step === 11) l3ActConn();
+            if (lv.step === 5 || lv.step === 10) l3ActConn();
             else lv.penalize(2, 'Konektor RJ-45 belum waktunya dipasang');
         } else if (id === 'crimp') {
-            if (lv.step === 7 || lv.step === 12) l3ActCrimp();
+            if (lv.step === 6 || lv.step === 11) l3ActCrimp();
             else lv.penalize(2, 'Tang Crimping belum waktunya digunakan');
         } else if (id === 'tester') {
-            if (lv.step === 13) l3ActTester();
+            if (lv.step === 12) l3ActTester();
             else lv.penalize(2, 'Tester LAN digunakan setelah kedua ujung kabel selesai dicrimp');
         }
     }
@@ -1449,7 +1368,6 @@ function makeL3() {
         ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
         txt('STATUS', b.x + b.w / 2, b.y + 18, { s: 11, a: 'center', c: C.acc, w: 800 });
         const rows = [
-            ['Pilih Crossover', KAB.cablePickDone],
             ['Sarung tangan', KAB.glove],
             ['Potong 150 cm', KAB.lenChosen],
             ['Ujung A T568A', KAB.slotsA.every(Boolean)],
@@ -1560,42 +1478,9 @@ function makeL3() {
             lv.phase = 'play';
             lv.t0 = performance.now();
             lv.lastAct = performance.now();
-            lv.modal = 'pick'; // Mulai dari langkah 0: pilih kabel
-            l3Andi(HINT.pick);
+            lv.modal = null;
+            l3Andi(HINT.glove);
         }, { color: C.ok, s: 16 });
-    }
-
-    /* Modal Langkah 0: Pilih Jenis Kabel */
-    function l3ModalPilihKabel() {
-        l3Shade();
-        const x = 140, y = 72, w = 680, h = 440;
-        l3Panel(x, y, w, h, C.acc);
-        txt('LANGKAH 0 — PILIH JENIS KABEL', x + w / 2, y + 34, { s: 19, f: FONT_H, a: 'center', c: C.acc, w: 600 });
-        para('Dua unit komputer PC di laboratorium TKJ ingin dihubungkan secara langsung tanpa melalui switch/hub. ' +
-            'Kabel jaringan apa yang paling tepat untuk kebutuhan ini?',
-            x + w / 2, y + 62, w - 80, 18, { s: 13.5, a: 'center', c: C.text, w: 700 });
-
-        const opsi = [
-            { t: 'A. Kabel Straight-Through', d: 'Kedua ujung memakai urutan standar yang sama (T568B - T568B)' },
-            { t: 'B. Kabel Crossover', d: 'Satu ujung memakai T568A dan ujung lainnya memakai T568B' },
-            { t: 'C. Kabel Rollover', d: 'Urutan pin terbalik total 1 sampai 8, untuk port konsol router' },
-            { t: 'D. Kabel Coaxial Thinnet', d: 'Kabel tembaga tunggal dengan konektor BNC lama' }
-        ];
-
-        opsi.forEach((o, i) => {
-            const by = y + 116 + i * 64;
-            const hov = over(x + 40, by, w - 80, 54);
-            if (hov) hoverBtn = true;
-            rr(x + 40, by, w - 80, 54, 10);
-            ctx.fillStyle = hov ? '#25405f' : 'rgba(18,32,50,.9)'; ctx.fill();
-            ctx.strokeStyle = hov ? C.acc : 'rgba(80,120,165,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
-            txt(o.t, x + 60, by + 22, { s: 14, f: FONT_H, c: C.text });
-            txt(o.d, x + 60, by + 40, { s: 11.5, c: C.mute });
-            hit(x + 40, by, w - 80, 54, () => l3PilihKabel(i));
-        });
-
-        para('Pilihlah dengan cermat. Jawaban yang salah akan mengurangi skor dan mendapatkan penjelasan edukatif.',
-            x + w / 2, y + h - 22, w - 60, 14, { s: 11, a: 'center', c: C.warn, w: 700 });
     }
 
     /* Modal Langkah-langkah */
@@ -1885,10 +1770,8 @@ function makeL3() {
             '4. Catatan penting: Perangkat jaringan modern memiliki teknologi Auto MDI-X yang dapat membalik sinyal secara otomatis, tetapi memahami kabel crossover adalah kompetensi fundamental teknisi jaringan!',
             x + 50, y + 308, w - 100, 16.5, { s: 11.5, c: C.text, w: 600 });
 
-        btn(x + w / 2 - 140, y + h - 52, 280, 42, 'Lanjut ke Kuis & Rapor ▸', () => {
-            lv.modal = null;
-            lv.phase = 'quiz';
-            say('Kuis pemahaman crossover: jawab 4 pertanyaan dengan teliti!', 'info');
+        btn(x + w / 2 - 140, y + h - 52, 280, 42, 'Lihat Rapor Praktikum ▸', () => {
+            lv.modal = 'report';
         }, { color: C.ok, s: 14.5 });
     }
 
@@ -1960,9 +1843,9 @@ function makeL3() {
         btn(x + w / 2 - 140, y + h - 50, 280, 42, 'Lihat Skor & Papan Peringkat ▸', () => {
             if (lv.finished) return;
             lv.modal = null;
-            // lv.win() di fase 'fin' sudah no-op (core/13-level-core.js), jadi
-            // tutup level secara eksplisit lewat endLevel() -> layar hasil &
-            // papan skor. lv.dur sudah terisi oleh lv.win(2400) saat kuis tamat.
+            // Tutup level secara eksplisit lewat endLevel() -> layar hasil &
+            // papan skor. lv.dur masih 0, jadi endLevel menghitungnya sendiri
+            // dari lv.elapsed().
             lv.finished = true;
             endLevel(lv, true);
         }, { color: C.ok, s: 14.5 });
@@ -1970,7 +1853,6 @@ function makeL3() {
 
     function l3DrawModal(now) {
         if (lv.modal === 'intro') l3ModalIntro();
-        else if (lv.modal === 'pick') l3ModalPilihKabel();
         else if (lv.modal === 'steps') l3ModalLangkah();
         else if (lv.modal === 'help') l3ModalBantuan();
         else if (lv.modal === 'len') l3ModalPanjang();
@@ -1984,64 +1866,6 @@ function makeL3() {
             }
             l3ModalTester(now);
         }
-    }
-
-    /* ================================================================
-       KUIS KHUSUS LEVEL 3
-       ================================================================ */
-    function l3DrawQuiz() {
-        ctx.fillStyle = 'rgba(4,10,20,.9)'; ctx.fillRect(0, 54, W, H - 54);
-        const quizzes = lv.quizzes || [];
-        if (lv.quizIdx >= quizzes.length) {
-            // Setelah kuis selesai, buka Rapor Pemahaman Crossover sebelum layar hasil
-            lv.modal = 'report';
-            return;
-        }
-        const q = quizzes[lv.quizIdx];
-        const PW = 660, PAD = 34;
-        const qL = wrapLines(q.q, PW - PAD * 2, 17, 700);
-        const oL = q.opts.map(function (o) { return wrapLines(o, PW - PAD * 2 - 44, 14.5, 700).slice(0, 2); });
-        const oH = oL.map(function (L) { return Math.max(40, L.length * 19 + 16); });
-        const h = 62 + qL.length * 24 + 22 + oH.reduce(function (a, b) { return a + b + 10; }, 0) + 14;
-        const x = (W - PW) / 2;
-        const y = clamp(54 + (H - 54 - h) / 2, 58, Math.max(58, H - 8 - h));
-        rr(x, y, PW, h, 18); ctx.fillStyle = C.panel; ctx.fill();
-        ctx.strokeStyle = C.acc; ctx.lineWidth = 2; ctx.stroke();
-        txt('Kuis Level 3 — Pertanyaan ' + (lv.quizIdx + 1) + ' dari ' + quizzes.length, x + PW / 2, y + 38,
-            { s: 20, f: FONT_H, c: C.acc, a: 'center', w: 600 });
-        qL.forEach(function (l, i) {
-            txt(l, x + PW / 2, y + 72 + i * 24, { s: 16, a: 'center', c: C.text, w: 700 });
-        });
-        const fin = lv.phase === 'fin';
-        let oy = y + 62 + qL.length * 24 + 22;
-        q.opts.forEach(function (o, i) {
-            const right = i === q.ans;
-            const wasWrong = lv.wrongPicks.indexOf(i) >= 0;
-            const dis = fin || wasWrong;
-            let color = '#2b4360', tc = C.text;
-            if (wasWrong) { color = '#5b2530'; tc = '#f5b5bd'; }
-            if (fin && right) { color = C.ok; tc = '#04160f'; }
-            const hh = oH[i];
-            rr(x + PAD, oy, PW - PAD * 2, hh, 12);
-            ctx.fillStyle = dis && !right && !wasWrong ? '#22344a' : color; ctx.fill();
-            ctx.lineWidth = wasWrong || (fin && right) ? 2.5 : 1.5;
-            ctx.strokeStyle = wasWrong ? '#f87171' : (fin && right ? C.ok : 'rgba(120,160,200,.4)');
-            ctx.stroke();
-            const nL = oL[i];
-            const ty0 = oy + hh / 2 - (nL.length - 1) * 9.5 + 5;
-            nL.forEach(function (l, k) {
-                txt(l, x + PW / 2, ty0 + k * 19, { s: 14.5, a: 'center', c: dis && !wasWrong ? '#5f7389' : tc, w: 700 });
-            });
-            if (wasWrong) crossIcon(x + PW - PAD - 20, oy + hh / 2, 15, '#fecaca');
-            if (!dis) hit(x + PAD, oy, PW - PAD * 2, hh, function () {
-                // Jangan menyetel lv.delay = 800 di sini: soal terakhir membuat
-                // phase = 'fin' dan membuka layar RAPOR yang menunggu klik siswa,
-                // bukan layar hasil. (Di Level 2 baris itu aman karena kuis
-                // langsung berujung ke layar hasil.)
-                quizPick(lv, i);
-            });
-            oy += hh + 10;
-        });
     }
 
     /* ================================================================
@@ -2139,18 +1963,9 @@ function makeL3() {
         if (lv.phase === 'intro') { l3ModalIntro(); return; }
         hud(lv);
         if (lv.modal === 'report') {
-            // Rapor Pemahaman ditahan sampai siswa menekan tombol di bawah.
-            // lv.tick() dipanggil tiap frame, jadi masa tampil digeser jauh ke
-            // depan selama modal terbuka (lv.delay = 800 yang lama membuat rapor
-            // menutup sendiri dalam ±800 ms sebelum sempat dibaca).
-            if (lv.phase === 'fin' && !lv.finished) lv.delay = 1e9;
+            // Rapor Pemahaman menunggu sampai siswa menekan tombol di bawah,
+            // jadi tidak perlu lagi menahan fase 'fin'.
             l3ModalRapor();
-            return;
-        }
-        if (lv.phase === 'quiz' || lv.phase === 'fin') {
-            if (lv.finished) return;
-            btns.length = 0;
-            l3DrawQuiz();
             return;
         }
 
@@ -2260,7 +2075,6 @@ function makeL3() {
 
         const badges = [];
         if (ok && KAB.helpUsed === 0) badges.push('Crossover Master');
-        if (KAB.firstPickCorrect) badges.push('Mata Elang');
         if (KAB.usedCm <= NEED_CM) badges.push('Hemat Kabel');
         if (KAB.rj45Used === 2) badges.push('Hemat Konektor');
         if (lv2.mistakes.length === 0) badges.push('Tangan Cekatan');
@@ -2338,6 +2152,6 @@ function makeL3() {
 registerLevel(3, {
     t: 'Crimping Crossover (T568A–T568B)',
     m: 'Satu kabel: ujung A T568A, ujung B T568B, uji pola silang',
-    desc: 'Buat satu kabel LAN crossover untuk menghubungkan dua PC langsung tanpa switch: pilih jenis kabel yang tepat, pakai sarung tangan, potong 150 cm, susun Ujung A sebagai T568A, crimp A, susun Ujung B sebagai T568B, crimp B, lalu buktikan pola silang 1↔3 dan 2↔6 pada LAN Tester.',
+    desc: 'Buat satu kabel LAN crossover untuk menghubungkan dua PC langsung tanpa switch: pakai sarung tangan, potong 150 cm, susun Ujung A sebagai T568A, crimp A, susun Ujung B sebagai T568B, crimp B, lalu buktikan pola silang 1↔3 dan 2↔6 pada LAN Tester.',
     mk: makeL3
 });
