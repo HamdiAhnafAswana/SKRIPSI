@@ -42,14 +42,14 @@ export default function SinovaIdentityForm({ onSubmit }) {
   }
 
   return (
-    <div className="sinova-overlay">
-      <form className="sinova-card sinova-form" onSubmit={handleSubmit} noValidate>
+    <div className="sinova-overlay sinova-overlay-identity">
+      <form className="sinova-card sinova-form sinova-form-identity" onSubmit={handleSubmit} noValidate>
         <img className="sinova-logo sinova-logo-sm" src={logo} alt="Logo SINOVA" width={64} height={64} />
-        <h2 className="sinova-form-title">Data Siswa</h2>
-        <p className="sinova-form-sub">Masukkan data siswa sebelum memulai.</p>
+        <h2 className="sinova-form-title">Selamat Datang!</h2>
+        <p className="sinova-form-sub">Data akan tersimpan otomatis.</p>
 
         <label className="sinova-field">
-          <span>Nama lengkap</span>
+          <span>Nama Lengkap</span>
           <input
             type="text"
             value={nama}
@@ -72,7 +72,7 @@ export default function SinovaIdentityForm({ onSubmit }) {
         </label>
 
         <label className="sinova-field">
-          <span>Nomor absen</span>
+          <span>Nomor Absen</span>
           <input
             type="number"
             value={absen}
@@ -87,7 +87,7 @@ export default function SinovaIdentityForm({ onSubmit }) {
         {error && <p className="sinova-error">{error}</p>}
 
         <button type="submit" className="sinova-btn sinova-btn-primary sinova-btn-block">
-          Mulai SINOVA
+          MULAI PRAKTIKUM
         </button>
       </form>
     </div>

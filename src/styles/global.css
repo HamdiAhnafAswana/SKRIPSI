@@ -71,8 +71,8 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 12px;
-  padding-top: max(8px, env(safe-area-inset-top));
+  padding: 10px 16px;
+  padding-top: max(10px, env(safe-area-inset-top));
   pointer-events: none;
 }
 
@@ -92,7 +92,7 @@ body {
 .app-header h1 {
   font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 16.5px;
   margin: 0;
   letter-spacing: .4px;
 }
@@ -100,9 +100,40 @@ body {
 .app-header p {
   font-family: 'Nunito', system-ui, sans-serif;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 12px;
   color: #8fa6bd;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Lencana nama siswa di navbar (ambil dari penyimpanan identitas). */
+.student-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 5px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(52, 211, 153, .28);
+  background: rgba(9, 18, 30, .55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  font-family: 'Nunito', system-ui, sans-serif;
+  pointer-events: auto;
+}
+
+.student-badge-icon {
+  flex: 0 0 auto;
+  color: #34d399;
+}
+
+.student-badge-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: #d9f5e8;
+  max-width: 220px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -114,7 +145,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 7px 14px;
   border-radius: 999px;
   border: 1px solid rgba(56, 189, 248, .22);
   background: rgba(9, 18, 30, .6);
@@ -122,7 +153,7 @@ body {
   backdrop-filter: blur(8px);
   color: #cfe2f5;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
@@ -135,7 +166,26 @@ body {
 }
 
 .fs-btn .fs-ico {
-  font-size: 14px;
+  font-size: 15px;
+}
+
+/* Wadah tombol kanan atas: header utama pointer-events:none,
+   tombol individual yang menangkap klik (lihat .fs-btn). */
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Tombol "Muat Ulang" (mulai ulang alur masuk SINOVA). */
+.restart-btn {
+  border-color: rgba(251, 191, 36, .35);
+  color: #fde68a;
+}
+
+.restart-btn:hover {
+  border-color: rgba(251, 191, 36, .65);
+  background: rgba(69, 45, 8, .75);
 }
 
 /* Panggung kanvas: mengisi seluruh viewport; sisa ruang = letterbox gelap. */
@@ -397,10 +447,21 @@ body {
   margin-top: 4px;
 }
 
-/* ---------- tutorial ---------- */
+/* ---------- tutorial (modal) ---------- */
+/* Tutorial tampil sebagai modal di tengah layar, serasi dengan modal
+   identitas: latar gelap & buram, kartu membulat dengan bayangan tebal. */
 
-.sinova-tutorial {
-  max-width: 720px;
+.sinova-overlay-tutorial {
+  background: rgba(5, 10, 18, .66);
+  -webkit-backdrop-filter: blur(7px) saturate(120%);
+  backdrop-filter: blur(7px) saturate(120%);
+}
+
+.sinova-card.sinova-tutorial {
+  max-width: 560px;
+  padding: 26px 26px 22px;
+  border-radius: 28px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, .5), 0 0 0 1px rgba(56, 189, 248, .06) inset;
 }
 
 .sinova-tut-head {
@@ -429,9 +490,9 @@ body {
 
 .sinova-tut-body {
   display: flex;
-  align-items: center;
-  gap: 22px;
-  min-height: 230px;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 180px;
 }
 
 .sinova-tut-andi {
@@ -607,6 +668,218 @@ body {
   font-weight: 700;
 }
 
+/* ---------- form identitas: tema kuning (referensi Cablista) ----------
+   Hanya modal identitas. Welcome & tutorial tetap memakai tema gelap di atas. */
+
+/* Latar simulasi tetap terlihat, namun digelapkan & dibuat buram saat modal tampil. */
+.sinova-overlay-identity {
+  background: rgba(5, 10, 18, .66);
+  -webkit-backdrop-filter: blur(7px) saturate(120%);
+  backdrop-filter: blur(7px) saturate(120%);
+}
+
+.sinova-card.sinova-form-identity {
+  max-width: 440px;
+  padding: 30px 30px 26px;
+  border-radius: 28px;
+  border: 1px solid rgba(184, 134, 0, .35);
+  background: linear-gradient(180deg, #ffdd55 0%, #ffcb05 100%);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, .5), 0 2px 0 rgba(255, 255, 255, .5) inset;
+  color: #3d3200;
+  text-align: center;
+}
+
+.sinova-form-identity .sinova-logo-sm {
+  width: 58px;
+  margin-bottom: 10px;
+  filter: drop-shadow(0 6px 14px rgba(120, 90, 0, .35));
+}
+
+.sinova-form-identity .sinova-form-title {
+  margin: 2px 0 4px;
+  font-size: 28px;
+  color: #2f2a06;
+}
+
+.sinova-form-identity .sinova-form-sub {
+  margin: 0 0 22px;
+  font-weight: 700;
+  color: #7a6519;
+}
+
+.sinova-form-identity .sinova-field > span {
+  color: #5f4d00;
+}
+
+.sinova-form-identity .sinova-field input,
+.sinova-form-identity .sinova-field select {
+  border: 2px solid rgba(120, 95, 0, .22);
+  border-radius: 12px;
+  background: #fffdf5;
+  color: #2b2b2b;
+}
+
+.sinova-form-identity .sinova-field input::placeholder {
+  color: #9a917a;
+}
+
+.sinova-form-identity .sinova-field input:focus,
+.sinova-form-identity .sinova-field select:focus {
+  border-color: #1f6feb;
+  box-shadow: 0 0 0 3px rgba(31, 111, 235, .25);
+}
+
+.sinova-form-identity .sinova-error {
+  background: rgba(185, 28, 28, .12);
+  border: 1px solid rgba(185, 28, 28, .45);
+  color: #a01b1b;
+}
+
+.sinova-form-identity .sinova-btn-primary {
+  margin-top: 8px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #2b8cff 0%, #1f6feb 100%);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  box-shadow: 0 10px 22px rgba(31, 111, 235, .4);
+}
+
+/* ---------- dialog konfirmasi "Muat Ulang" ----------
+   Memakai tema gelap overlay standar (sama seperti welcome/tutorial). */
+.sinova-card.sinova-confirm {
+  max-width: 460px;
+  text-align: center;
+}
+
+.sinova-confirm-title {
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 800;
+  color: #eaf2fb;
+}
+
+.sinova-confirm-text {
+  margin: 0 0 22px;
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: #9db2c8;
+}
+
+/* ---------- papan peringkat (panel kanan dashboard) ----------
+   Panel DOM di sisi kanan area utama, di bawah navbar. Tema biru gelap
+   menyatu dengan kartu onboarding. pointer-events:none supaya tidak
+   menghalangi klik ke kanvas; hanya dirender saat scene menu aktif. */
+.lb-panel {
+  position: absolute;
+  top: 58px;
+  right: 14px;
+  z-index: 10;
+  width: 232px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #24425f;
+  background: linear-gradient(180deg, #10203a 0%, #0b1626 100%);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .5), 0 0 0 1px rgba(56, 189, 248, .05) inset;
+  color: #dbe7f4;
+  font-family: 'Nunito', system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.lb-title {
+  margin: 0 0 2px;
+  font-size: 12.5px;
+  font-weight: 800;
+  text-align: center;
+  color: #fbbf24;
+  white-space: nowrap;
+}
+
+.lb-sub {
+  margin: 0 0 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: .3px;
+  color: #7f97ae;
+}
+
+.lb-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .03);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+/* Tiga teratas: badge peringkat emas / perak / perunggu. */
+.lb-row.lb-top {
+  color: #f4f7fb;
+}
+
+.lb-top .lb-rank {
+  color: #06131f;
+}
+
+.lb-top-1 .lb-rank { background: linear-gradient(180deg, #fde047 0%, #f59e0b 100%); }
+.lb-top-2 .lb-rank { background: linear-gradient(180deg, #e8eef5 0%, #9fb0c2 100%); }
+.lb-top-3 .lb-rank { background: linear-gradient(180deg, #f0b184 0%, #b06a37 100%); }
+
+.lb-rank {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #8fa6bd;
+}
+
+.lb-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lb-total {
+  flex: 0 0 auto;
+  font-weight: 800;
+  color: #fde68a;
+}
+
+.lb-top .lb-total {
+  color: #fbbf24;
+}
+
+.lb-empty {
+  margin: 0;
+  padding: 8px 6px;
+  text-align: center;
+  font-size: 11.5px;
+  color: #7b90a8;
+}
+
 /* ---------- responsif ---------- */
 
 /* Layar besar: kartu onboarding sedikit lebih lapang agar proporsional. */
@@ -614,8 +887,8 @@ body {
   .sinova-card {
     max-width: 720px;
   }
-  .sinova-tutorial {
-    max-width: 840px;
+  .sinova-card.sinova-tutorial {
+    max-width: 600px;
   }
 }
 
@@ -627,11 +900,42 @@ body {
   .fs-btn-label {
     display: none;
   }
+  .student-badge {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .student-badge-name {
+    max-width: 110px;
+  }
 }
 
 @media (max-width: 820px), (max-height: 460px) {
   .note {
     display: none;
+  }
+}
+
+/* Layar kecil: panel peringkat menjadi strip di bawah menu utama
+   agar tidak menutupi menu. */
+@media (max-width: 768px) {
+  .lb-panel {
+    top: auto;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    padding: 10px 12px;
+  }
+  .lb-title {
+    font-size: 11.5px;
+    white-space: normal;
+  }
+  .lb-sub {
+    margin-bottom: 6px;
+  }
+  .lb-row {
+    font-size: 11.5px;
+    padding: 3px 5px;
   }
 }
 
@@ -667,5 +971,12 @@ body {
   }
   .sinova-actions-inline .sinova-btn {
     flex: 1 1 auto;
+  }
+  .sinova-card.sinova-form-identity {
+    padding: 24px 18px 20px;
+    border-radius: 22px;
+  }
+  .sinova-form-identity .sinova-form-title {
+    font-size: 24px;
   }
 }

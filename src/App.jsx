@@ -3,6 +3,8 @@ import './styles/global.css';
 import SinovaWelcome from './components/SinovaWelcome.jsx';
 import SinovaTutorial from './components/SinovaTutorial.jsx';
 import SinovaIdentityForm from './components/SinovaIdentityForm.jsx';
+import SinovaConfirmDialog from './components/SinovaConfirmDialog.jsx';
+import SinovaLeaderboard from './components/SinovaLeaderboard.jsx';
 import FullscreenButton from './components/FullscreenButton.jsx';
 
 // Vite menyuntikkan base deployment (mis. '/SKRIPSI/') — dipakai agar skrip
@@ -53,6 +55,17 @@ function readInitialStage() {
 export default function App() {
   const [gameReady, setGameReady] = useState(false);
   const [stage, setStage] = useState(readInitialStage);
+  // Nama siswa aktif — dibaca dari penyimpanan identitas yang sama (sinova_student).
+  const [studentName, setStudentName] = useState(() => {
+    try {
+      const raw = localStorage.getItem(STUDENT_KEY);
+      const d = raw ? JSON.parse(raw) : null;
+      return d && typeof d.nama === 'string' && d.nama.trim() ? d.nama.trim() : '';
+    } catch (e) {
+      return '';
+    }
+  });
+  const [confirmRestart, setConfirmRestart] = useState(false);
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -107,7 +120,27 @@ export default function App() {
       localStorage.setItem(LEGACY_NAME_KEY, data.nama);
     } catch (e) { /* ignore */ }
 
+    // Perbarui nama di navbar dashboard.
+    setStudentName(data.nama);
     setStage('game');
+    if (typeof window !== 'undefined') window.scrollTo(0, 0);
+  }, []);
+
+  // Konfirmasi "Muat Ulang" di dashboard: buang hanya status onboarding
+  // (identitas + tutorial) agar alur masuk bisa diulang dari awal, yaitu
+  // tutorial → identitas → dashboard. Hasil praktik, nilai, riwayat, dan
+  // leaderboard tidak disentuh.
+  const handleRestartConfirm = useCallback(() => {
+    try {
+      localStorage.removeItem(STUDENT_KEY);
+      localStorage.removeItem(TUTORIAL_KEY);
+      localStorage.removeItem(LEGACY_NAME_KEY);
+    } catch (e) { /* ignore */ }
+
+    setStudentName('');
+    setConfirmRestart(false);
+    setStage('tutorial');
+    if (typeof window !== 'undefined') window.scrollTo(0, 0);
   }, []);
 
   const showCanvas = stage === 'game';
@@ -119,7 +152,38 @@ export default function App() {
           <h1>SINOVA</h1>
           <p>Simulation Interactive Network Virtual Academy</p>
         </div>
-        <FullscreenButton />
+        <div className="app-header-actions">
+          <div
+            className="student-badge"
+            title={studentName ? `Siswa: ${studentName}` : 'Belum ada identitas'}
+          >
+            <svg
+              className="student-badge-icon"
+              viewBox="0 0 16 16"
+              width="13"
+              height="13"
+              aria-hidden="true"
+            >
+              <path
+                fill="currentColor"
+                d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 1.5c-2.9 0-5.5 1.46-5.5 3.4v1a.6.6 0 0 0 .6.6h9.8a.6.6 0 0 0 .6-.6v-1c0-1.94-2.6-3.4-5.5-3.4Z"
+              />
+            </svg>
+            <span className="student-badge-name">{studentName || 'Tamu'}</span>
+          </div>
+          {stage === 'game' && (
+            <button
+              type="button"
+              className="fs-btn restart-btn"
+              onClick={() => setConfirmRestart(true)}
+              title="Mulai ulang alur masuk SINOVA dari awal"
+            >
+              <span className="fs-ico" aria-hidden="true">{'\u21BB'}</span>
+              <span className="fs-btn-label">Muat Ulang</span>
+            </button>
+          )}
+          <FullscreenButton />
+        </div>
       </header>
 
       <main className="app-main">
@@ -146,6 +210,13 @@ export default function App() {
         <SinovaTutorial onFinish={finishTutorial} onSkip={finishTutorial} />
       )}
       {stage === 'identity' && <SinovaIdentityForm onSubmit={submitIdentity} />}
+      {stage === 'game' && <SinovaLeaderboard />}
+      {confirmRestart && (
+        <SinovaConfirmDialog
+          onCancel={() => setConfirmRestart(false)}
+          onConfirm={handleRestartConfirm}
+        />
+      )}
     </div>
   );
 }

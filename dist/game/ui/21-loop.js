@@ -24,7 +24,9 @@ function frame() {
     const docEl = (typeof document !== 'undefined' && document.documentElement) ? document.documentElement : null;
     if (docEl) {
         try {
-            const mode = (scene && typeof scene.phase !== 'undefined') ? 'level' : 'menu';
+            // 'menu' = menu utama saja (dipakai panel papan peringkat agar tidak
+            // menutupi layar lain); 'level' = sedang bermain; 'lain' = layar lain.
+            const mode = (scene === menuScene) ? 'menu' : ((scene && typeof scene.phase !== 'undefined') ? 'level' : 'lain');
             if (docEl.dataset.sinovaMode !== mode) docEl.dataset.sinovaMode = mode;
         } catch (e) {}
     }

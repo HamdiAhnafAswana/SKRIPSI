@@ -31,17 +31,6 @@ const menuScene = {
             persist();
         }, { color: save.l2.grafis === 'hemat' ? C.warn : '#2b4360', tc: save.l2.grafis === 'hemat' ? '#1a1200' : C.text, s: 12 });
         if (!nameEl.value.trim()) txt('Isi nama siswa di atas kanvas agar hasil tercatat di log.', W / 2, 430, { s: 13, a: 'center', c: C.warn });
-        const lbY = 456;
-        txt('🏆 Papan Peringkat Level 1, 2 & 3', W / 2, lbY, { s: 15, f: FONT_H, a: 'center', c: C.warn });
-        const top5 = (save.board || []).slice(0, 3);
-        const top5b = (save.board2 || []).slice(0, 3);
-        const top5c = (save.board3 || []).slice(0, 3);
-        if (!top5.length && !top5b.length && !top5c.length) txt('Belum ada skor. Jadilah yang pertama!', W / 2, lbY + 28, { s: 13, a: 'center', c: C.mute });
-        else {
-            top5.forEach((e, i) => { const y = lbY + 24 + i * 20; txt('L1 · ' + (i + 1) + '. ' + (e.nama.length > 12 ? e.nama.slice(0, 11) + '…' : e.nama) + ' — ' + e.skor, W / 2 - 270, y, { s: 12, a: 'center', c: i === 0 ? C.warn : C.text }); });
-            top5b.forEach((e, i) => { const y = lbY + 24 + i * 20; txt('L2 · ' + (i + 1) + '. ' + (e.nama.length > 12 ? e.nama.slice(0, 11) + '…' : e.nama) + ' — ' + e.skor, W / 2, y, { s: 12, a: 'center', c: i === 0 ? C.warn : C.text }); });
-            top5c.forEach((e, i) => { const y = lbY + 24 + i * 20; txt('L3 · ' + (i + 1) + '. ' + (e.nama.length > 12 ? e.nama.slice(0, 11) + '…' : e.nama) + ' — ' + e.skor, W / 2 + 270, y, { s: 12, a: 'center', c: i === 0 ? C.warn : C.text }); });
-        }
     }
 };
 const levelsScene = {

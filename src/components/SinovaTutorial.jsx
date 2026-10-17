@@ -105,7 +105,7 @@ export default function SinovaTutorial({ onFinish, onSkip }) {
   }
 
   return (
-    <div className="sinova-overlay">
+    <div className="sinova-overlay sinova-overlay-tutorial">
       <div className="sinova-card sinova-tutorial">
         <div className="sinova-tut-head">
           <span className="sinova-tut-badge">Tutorial SINOVA</span>
@@ -116,7 +116,7 @@ export default function SinovaTutorial({ onFinish, onSkip }) {
 
         <div className="sinova-tut-body">
           <div className="sinova-tut-andi">
-            <AndiAvatar size={168} />
+            <AndiAvatar size={112} />
           </div>
 
           <div className="sinova-tut-content" key={page}>
