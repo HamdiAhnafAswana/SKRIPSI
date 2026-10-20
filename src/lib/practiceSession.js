@@ -154,6 +154,10 @@ function httpStatusDariError(error) {
 // --- pemanggilan inti -------------------------------------------------------
 
 async function kirim(action, payload, token, jenis = 'session') {
+  // Klien Supabase tidak tersedia bila konfigurasi build tidak lengkap.
+  // Dilaporkan sebagai kegagalan layanan (bukan crash) tanpa mengarang sesi.
+  if (!supabase) return gagal(SESSION_STATUS.CONFIG_ERROR);
+
   const siswanya = payload && typeof payload.student_id === 'string' ? payload.student_id : '';
   if (!siswanya) return gagal(SESSION_STATUS.MISSING_IDENTITY);
 

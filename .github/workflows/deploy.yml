@@ -32,8 +32,27 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Cek variabel build wajib
+        # Gagal cepat bila variabel publik belum diset, supaya tidak
+        # menerbitkan build tanpa konfigurasi (penyebab halaman kosong).
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Repository variables VITE_SUPABASE_URL dan/atau VITE_SUPABASE_ANON_KEY belum diset."
+            echo "Setel di Settings → Secrets and variables → Actions → Variables (tab Variables)."
+            exit 1
+          fi
+
       - name: Build (Vite)
         run: npm run build
+        env:
+          # Nilai PUBLIK (URL proyek + anon/publishable key) — bukan secret server.
+          # Disetel di: Settings → Secrets and variables → Actions → Variables.
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_SINOVA_ADMIN_API: ${{ vars.VITE_SINOVA_ADMIN_API }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

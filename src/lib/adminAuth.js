@@ -66,6 +66,12 @@ export async function signInAdmin(email, password) {
     return { ok: false, code: 'empty_fields', message: PESAN.empty_fields };
   }
 
+  if (!supabase) {
+    // Konfigurasi build tidak lengkap: laporkan sebagai gangguan layanan,
+    // bukan "email/sandi salah" (jangan menyesatkan pengguna).
+    return { ok: false, code: 'network', message: PESAN.network };
+  }
+
   let res;
   try {
     res = await supabase.auth.signInWithPassword({ email: mail, password });
@@ -101,6 +107,9 @@ export async function signOutAdmin() {
  */
 export async function getAdminSession() {
   try {
+    if (!supabase) {
+      return { hasSession: false, accessToken: '', userId: '', email: null };
+    }
     const { data, error } = await supabase.auth.getSession();
     if (error || !data?.session?.access_token) {
       return { hasSession: false, accessToken: '', userId: '', email: null };

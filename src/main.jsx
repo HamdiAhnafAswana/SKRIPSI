@@ -2,7 +2,12 @@
 import React, { lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
+import SinovaConfigError from './components/SinovaConfigError.jsx';
 import { isAdminRoute } from './admin/adminRoute.js';
+import {
+  isSupabaseConfigured,
+  supabaseMissingVars,
+} from './lib/supabase.js';
 import './styles/global.css';
 
 // Area ADMIN dipisahkan dari game siswa lewat rute hash (#/admin).
@@ -20,7 +25,17 @@ function ruteAdmin() {
 
 const akar = createRoot(document.getElementById('root'));
 
-if (ruteAdmin()) {
+// Jaring pengaman konfigurasi: bila variabel build Supabase tidak tersedia,
+// JANGAN render aplikasi (yang akan gagal menghubungi server tanpa penjelasan).
+// Tampilkan pesan yang jelas agar pengguna tidak melihat halaman kosong.
+// `src/lib/supabase.js` sengaja TIDAK melempar error saat diimpor.
+if (!isSupabaseConfigured) {
+  akar.render(
+    <React.StrictMode>
+      <SinovaConfigError missingVars={supabaseMissingVars} />
+    </React.StrictMode>
+  );
+} else if (ruteAdmin()) {
   akar.render(
     <React.StrictMode>
       <Suspense
