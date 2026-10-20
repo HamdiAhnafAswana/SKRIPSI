@@ -47,7 +47,8 @@ function makeL3() {
     /* ================================================================
        TATA LETAK (kanvas virtual 960 x 600)
        ================================================================ */
-    const AY = 88, AX = 172, AW = 616, AH = 430;          // area kerja 88..518
+    const AY = 88, AH = 430;          // area kerja 88..518
+    let AX = 172, AW = 616;
     const WORK_BOT = 514;
     const PL = { x: 8, y: 88, w: 156, h: 430 };            // panel kiri ALAT
     const PR = { x: 796, y: 88, w: 156, h: 430 };          // panel kanan PASANG
@@ -56,6 +57,15 @@ function makeL3() {
     const CARD = { y: 120, h: 80, dy: 88 };                // kartu alat
     const SBOX = { x: PL.x + 8, y: 384, w: 140, h: 130 };  // panel STATUS 16..156
     const MBOX = { x: PR.x + 8, y: 384, w: 140, h: 130 };  // kartu PESAN 804..944
+
+    /* --- layar lebar (VW > 960): panel kiri menempel tepi kiri, panel kanan tepi kanan,
+           area kerja tengah melar; komponen yang dipusatkan (PIN/RJ-45) tetap di tengah --- */
+    function rewidth() {
+        const OW = wideOX();
+        PL.x = 8 - OW; PR.x = 796 + OW; BAR.x = 8 - OW; BAR.w = 944 + 2 * OW;
+        SBOX.x = PL.x + 8; MBOX.x = PR.x + 8;
+        AX = 172 - OW; AW = 616 + 2 * OW;
+    }
 
     /* Kepala RJ-45: Banner Misi di atas, Baris nomor pin 1-8 DI ATAS slot */
     const MISI_H = 22;
@@ -1883,7 +1893,8 @@ function makeL3() {
         while (lv.briefPage < BRIEF_PAGES.length && (!BRIEF_PAGES[lv.briefPage] || BRIEF_PAGES[lv.briefPage].trim() === '')) { lv.briefPage++; lv.briefShown = 0; }
         const t = now / 1000;
         bg(false); hud(lv);
-        const AP = { x: 20, y: 70, w: 270, h: 490 };
+        const BW = wideOX();
+        const AP = { x: 20 - BW, y: 70, w: 270, h: 490 };
         rr(AP.x, AP.y, AP.w, AP.h, 18);
         const ag = ctx.createLinearGradient(0, AP.y, 0, AP.y + AP.h);
         ag.addColorStop(0, '#1b3350'); ag.addColorStop(1, '#0d1a2b');
@@ -1901,7 +1912,7 @@ function makeL3() {
         txt('Andi', AP.x + AP.w / 2, AP.y + 440, { s: 16, a: 'center', w: 800, c: C.text });
         txt('Teknisi Senior · SMK Nusantara', AP.x + AP.w / 2, AP.y + 455, { s: 10.5, a: 'center', c: C.mute });
 
-        const RP = { x: 306, y: 70, w: 634, h: 490 };
+        const RP = { x: 306 - BW, y: 70, w: 634 + 2 * BW, h: 490 };
         if (lv.briefPage < BRIEF_PAGES.length) {
             const full = BRIEF_PAGES[lv.briefPage];
             const shownText = full.slice(0, Math.floor(lv.briefShown));
@@ -1948,6 +1959,7 @@ function makeL3() {
     lv.draw = function () {
         lv.tick();
         const now = performance.now();
+        rewidth();
         deskBG();
 
         if (lv.phase === 'brief') {

@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+# Template staging boleh dikomit; berkas .env.staging sendiri tetap ter-ignore.
+!.env.staging.example
+
+# --- SINOVA: dependensi, hasil build, dan konfigurasi sensitif ---
+# Dependensi lokal (jangan pernah dikomit).
+node_modules/
+# Hasil build Vite (dibangun ulang oleh CI/tools).
+dist/
+# Konfigurasi registry npm lokal — berpotensi memuat kredensial.
+.npmrc
+# Cache lokal dan log.
+.vite/
+*.log

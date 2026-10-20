@@ -76,6 +76,14 @@ body {
   pointer-events: none;
 }
 
+/* Saat simulasi Level 1–5 aktif, engine menandai <html data-sinova-mode="level">
+   (ui/21-loop.js). Navbar dashboard disembunyikan selama mode itu agar HUD level
+   (judul, timer, skor, Menu) dan seluruh kanvas tampil utuh seperti desain awal.
+   Navbar tidak dihapus: mode kembali ke 'menu'/'lain' → tampil lagi otomatis. */
+html[data-sinova-mode="level"] .app-header {
+  display: none;
+}
+
 .app-brand {
   display: flex;
   align-items: baseline;

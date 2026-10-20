@@ -101,6 +101,12 @@ function makeL1() {
     const G = CABG;
     const TB = { x: 656, y: 118, w: 288, h: 418 };
     lv.TB = TB;
+    /* --- layar lebar (VW > 960): lemari menempel tepi kiri, panel alat menempel tepi kanan --- */
+    function rewidth() {
+        const OW = wideOX();
+        CABG.FX = 36 - OW; CABG.IX = CABG.FX + CABG.T;
+        TB.x = 656 + OW;
+    }
     lv.tilt = { x: 0, y: 0 }; lv.off = { x: 0, y: 0 }; lv.cabShake = 0;
     lv.wrongCard = null; lv.doorT0 = performance.now(); lv.doorOpen = 0;
     lv.bgSpr = buildRoom(K); lv.cabSpr = cabinetSprite();
@@ -336,7 +342,8 @@ function makeL1() {
             ctx.fillStyle = 'rgba(56,189,248,' + a.toFixed(3) + ')'; ctx.fill();
         }
         hud(lv);
-        const AP = { x: 20, y: 70, w: 270, h: 490 };
+        const BW = wideOX();
+        const AP = { x: 20 - BW, y: 70, w: 270, h: 490 };
         rr(AP.x, AP.y, AP.w, AP.h, 18);
         const ag = ctx.createLinearGradient(0, AP.y, 0, AP.y + AP.h);
         ag.addColorStop(0, '#1b3350'); ag.addColorStop(1, '#0d1a2b');
@@ -351,7 +358,7 @@ function makeL1() {
         ctx.strokeStyle = 'rgba(56,189,248,.4)'; ctx.lineWidth = 1.5; ctx.stroke();
         txt('Andi', AP.x + AP.w / 2, AP.y + 440, { s: 16, a: 'center', w: 800, c: C.text });
         txt('Teknisi Senior \u00b7 SMK Nusantara', AP.x + AP.w / 2, AP.y + 455, { s: 10.5, a: 'center', c: C.mute });
-        const RP = { x: 306, y: 70, w: 634, h: 490 };
+        const RP = { x: 306 - BW, y: 70, w: 634 + 2 * BW, h: 490 };
         if (lv.page < K.dialog.length) {
             const full = K.dialog[lv.page];
             const shownText = full.slice(0, lv.shown);
@@ -572,6 +579,7 @@ function makeL1() {
     lv.draw = function () {
         lv.tick();
         const now = performance.now();
+        rewidth();
         if (lv.limit && !lv.finished && lv.phase === 'play' && lv.elapsed() > lv.limit) {
             lv.finished = true; lv.dur = lv.limit; endLevel(lv, false); return;
         }

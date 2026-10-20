@@ -134,6 +134,12 @@ const VISUAL_CHANGED = [
 ];
 
 const INTENTIONAL_CHANGED = [
+  /* Layout responsif layar lebar Level 1-5: konstanta AX/AW dipecah menjadi let dan
+     panel menempel tepi kanvas lewat rewidth() (pita kosong OX, dibatasi wideOX()). */
+  'const AY = 88, AX = 172, AW = 616, AH = 430;          // area kerja 88..518',
+  'const AX = 204, AY = TOP, AW = 532, AH = BOTTOM - TOP;',
+  'const AP = { x: 20, y: 70, w: 270, h: 490 };',
+  'const RP = { x: 306, y: 70, w: 634, h: 490 };',
   'LEVEL 3 / 4 / 5',
   'Daftar level & scene menu',
   'const LV = [',

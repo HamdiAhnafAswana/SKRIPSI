@@ -36,7 +36,8 @@ function makeL4() {
     const BOTTOM = FOOT_Y - 10;                  // 526 — tepi bawah area permainan
     const PL = { x: 10, y: TOP, w: 184, h: BOTTOM - TOP };
     const PR = { x: 746, y: TOP, w: 204, h: BOTTOM - TOP };
-    const AX = 204, AY = TOP, AW = 532, AH = BOTTOM - TOP;
+    const AY = TOP, AH = BOTTOM - TOP;
+    let AX = 204, AW = 532;
     const BAR = { x: 10, y: FOOT_Y, w: 940, h: FOOT_H };
 
     /* --- Perangkat jaringan (proporsional terhadap area tengah) --- */
@@ -73,6 +74,17 @@ function makeL4() {
         { id: 'pc1', name: 'PC 1', x: PC1.x, y: PC1.y, w: PC1.w, h: PC1.h, ip: null, cable: null },
         { id: 'pc2', name: 'PC 2', x: PC2.x, y: PC2.y, w: PC2.w, h: PC2.h, ip: null, cable: null }
     ];
+
+    /* --- layar lebar (VW > 960): panel & perangkat merentang mengikuti lebar layar;
+           switch tetap di tengah sehingga baris port yang sudah dihitung tetap tepat --- */
+    function rewidth() {
+        const OW = wideOX();
+        PL.x = 10 - OW; PR.x = 746 + OW; BAR.x = 10 - OW; BAR.w = 940 + 2 * OW;
+        AX = 204 - OW; AW = 532 + 2 * OW;
+        PC1.x = AX + 36; PC2.x = AX + AW - 168;
+        SWITCH.x = AX + 64; SWITCH.w = AW - 128;
+        PCS[0].x = PC1.x; PCS[1].x = PC2.x;
+    }
 
     /* --- Kabel dinamis: 2 kabel straight, masing-masing bisa dipindah --- */
     const CABLES = [
@@ -291,7 +303,8 @@ function makeL4() {
         while (lv.briefPage < BRIEF_PAGES.length && (!BRIEF_PAGES[lv.briefPage] || BRIEF_PAGES[lv.briefPage].trim() === '')) { lv.briefPage++; lv.briefShown = 0; }
         const t = now / 1000;
         bg(false); hud(lv);
-        const AP = { x: 20, y: 70, w: 270, h: 490 };
+        const BW = wideOX();
+        const AP = { x: 20 - BW, y: 70, w: 270, h: 490 };
         rr(AP.x, AP.y, AP.w, AP.h, 18);
         const ag = ctx.createLinearGradient(0, AP.y, 0, AP.y + AP.h);
         ag.addColorStop(0, '#1b3350'); ag.addColorStop(1, '#0d1a2b');
@@ -309,7 +322,7 @@ function makeL4() {
         txt('Andi', AP.x + AP.w / 2, AP.y + 440, { s: 16, a: 'center', w: 800, c: C.text });
         txt('Teknisi Senior · SMK Nusantara', AP.x + AP.w / 2, AP.y + 455, { s: 10.5, a: 'center', c: C.mute });
 
-        const RP = { x: 306, y: 70, w: 634, h: 490 };
+        const RP = { x: 306 - BW, y: 70, w: 634 + 2 * BW, h: 490 };
         if (lv.briefPage < BRIEF_PAGES.length) {
             const full = BRIEF_PAGES[lv.briefPage];
             const shownText = full.slice(0, lv.briefShown);
@@ -938,6 +951,7 @@ function makeL4() {
     lv.draw = function () {
         lv.tick();
         const now = performance.now();
+        rewidth();
 
         if (lv.limit && !lv.finished && lv.phase === 'play' && lv.elapsed() > lv.limit) {
             lv.finished = true; lv.dur = lv.limit; endLevel(lv, false); return;

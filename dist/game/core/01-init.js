@@ -6,6 +6,9 @@
 
 const W = 960, H = 600;
 let VW = 960, OX = 0;
+/* Pita kosong saat kanvas diperlebar (VW > 960): dipakai panel tiap level
+   agar menempel tepi kiri/kanan layar secara proporsional (dibatasi 240 px logis). */
+function wideOX() { return Math.max(0, Math.min(OX, 240)); }
 const cv = document.getElementById('c');
 let ctx = cv.getContext('2d');
 const FONT_H = '"Fredoka","Nunito",system-ui,sans-serif', FONT_B = '"Nunito",system-ui,sans-serif';

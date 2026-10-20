@@ -52,7 +52,47 @@ function endLevel(lv, ok) {
     }, { kabel_cm: 0, rj45: 0, bantuan: 0, lencana: '' }, extra));
     if (save.log.length > 300) save.log.shift();
     persist();
+    // Referensi ke entri log yang baru ditambahkan (shift hanya membuang entri
+    // paling lama, jadi entri terbaru selalu berada di indeks terakhir).
+    const catatan = save.log[save.log.length - 1];
+    kirimHasilKeServer(lv, ok, catatan);
     go((lv.makeResult || resultScene)(lv, ok, stars, isNewBest));
+}
+/* ---------- sinkronisasi hasil ke backend SINOVA (opsional) ----------
+   Mengirim hasil level lewat jembatan window.SINOVA_BACKEND. Aturan:
+   - resultId dibuat SEKALI per percobaan (disimpan di lv + catatan log) supaya
+     pengiriman ulang tidak menggandakan hasil; percobaan baru = lv baru = id baru.
+   - Hasil ditandai tersinkron HANYA setelah server mengonfirmasi (ok === true).
+   - Bila jembatan tidak tersedia (game dijalankan tanpa shell SINOVA) atau
+     siswa belum punya token valid, fungsi ini tidak mengganggu alur game —
+     hasil tetap tersimpan lokal dan diantrekan untuk kirim ulang manual.
+   - Tidak ada pemanggilan endLevel ganda yang mengirim ulang hasil yang sama. */
+function kirimHasilKeServer(lv, ok, catatan) {
+    try {
+        const b = (typeof window !== 'undefined') ? window.SINOVA_BACKEND : null;
+        if (!b || typeof b.submitResult !== 'function') return;
+        if (lv.sinovaTerkirim) return; // cegah kiriman ganda dari endLevel berulang
+        if (!lv.sinovaResultId) lv.sinovaResultId = b.newResultId();
+        lv.sinovaTerkirim = true;
+        const resultId = lv.sinovaResultId;
+        catatan.sinova = { resultId: resultId, status: 'pending', ts: Date.now() };
+        Promise.resolve(b.submitResult({
+            resultId: resultId, level: lv.n, score: lv.score,
+            mistakes: lv.mistakes.length, durationSeconds: lv.dur, passed: !!ok
+        })).then(function (hasil) {
+            if (catatan.sinova) catatan.sinova.status = (hasil && hasil.ok) ? 'synced' : 'pending';
+            persist();
+            if (hasil && hasil.ok) say('Hasil level tersimpan di server.', 'ok');
+            else if (hasil && hasil.status === 'unauthorized') say('Sesi belajar perlu diperbarui. Daftar ulang lalu kirim ulang hasil.', 'bad');
+            else say('Hasil tersimpan di perangkat. Sinkronkan lewat Log hasil.', 'info');
+        }).catch(function () {
+            if (catatan.sinova) catatan.sinova.status = 'pending';
+        });
+        // Sesi backend dianggap tuntas saat seluruh level telah diselesaikan.
+        if (ok && lv.n >= levelTotal() && typeof b.finish === 'function') {
+            Promise.resolve(b.finish()).catch(function () {});
+        }
+    } catch (e) { /* sinkronisasi opsional — jangan ganggu alur game */ }
 }
 function resultScene(lv, ok, stars, isNewBest) {
     return {

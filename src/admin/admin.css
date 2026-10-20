@@ -1,0 +1,689 @@
+/* Gaya khusus area admin — terpisah dari gaya game siswa (global.css). */
+
+.admin-app {
+  min-height: 100vh;
+  background: #0b1220;
+  color: #e7eefc;
+}
+
+.admin-login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #0b1220;
+  color: #e7eefc;
+}
+
+.admin-login,
+.admin-notice {
+  width: 100%;
+  max-width: 380px;
+  background: #121c2f;
+  border: 1px solid #22314b;
+  border-radius: 14px;
+  padding: 28px 26px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.admin-login-title {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.admin-login-sub {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: #9fb0cc;
+}
+
+.admin-login-notice {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #1b2b45;
+  border: 1px solid #2b4360;
+  font-size: 13px;
+}
+
+.admin-field {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.admin-field > span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #b9c7de;
+}
+
+.admin-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #2b3d5b;
+  background: #0e1726;
+  color: #e7eefc;
+  font-size: 14px;
+}
+
+.admin-field input:focus {
+  outline: none;
+  border-color: #4f9cf9;
+}
+
+.admin-error {
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: #3a1620;
+  border: 1px solid #7a2b3c;
+  color: #ffd9e0;
+  font-size: 13px;
+}
+
+.admin-btn {
+  display: inline-block;
+  padding: 11px 16px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.admin-btn-primary {
+  width: 100%;
+  background: #2f7fe0;
+  color: #ffffff;
+}
+
+.admin-btn-ghost {
+  background: transparent;
+  border-color: #33507a;
+  color: #cfe0fb;
+}
+
+.admin-login-back {
+  display: block;
+  margin-top: 14px;
+  font-size: 13px;
+  color: #8fb4e8;
+  text-align: center;
+  text-decoration: none;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px;
+  background: #0e1726;
+  border-bottom: 1px solid #1e2c44;
+}
+
+.admin-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.admin-brand strong {
+  font-size: 20px;
+  letter-spacing: 0.5px;
+}
+
+.admin-brand-sub {
+  font-size: 13px;
+  color: #8fb4e8;
+}
+
+.admin-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-user {
+  font-size: 13px;
+  color: #b9c7de;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-main {
+  padding: 26px 22px;
+}
+
+.admin-card {
+  max-width: 720px;
+  background: #121c2f;
+  border: 1px solid #22314b;
+  border-radius: 14px;
+  padding: 22px;
+}
+
+.admin-card-title {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.admin-card-text {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.admin-muted {
+  color: #9fb0cc;
+}
+
+.admin-notice-warn {
+  border-color: #7a5a1e;
+}
+
+.admin-notice-error {
+  border-color: #7a2b3c;
+}
+
+/* ============================ Fase 9: DASHBOARD ============================ */
+
+.admin-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Spanduk mode DEMO */
+.admin-demo-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #3a2f12;
+  border: 1px solid #7a5f1e;
+  color: #ffe9b8;
+  font-size: 13px;
+}
+
+.admin-demo-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #b8860b;
+  color: #1b1200;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.admin-demo-notice-text {
+  line-height: 1.4;
+}
+
+/* Penanda mode LIVE (data nyata) — pembeda tegas dari spanduk DEMO. */
+.admin-live-badge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #1f6f43;
+  color: #e8fff2;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+/* Peringatan kejujuran data (meta.scanLimited = true) — BUKAN spanduk DEMO */
+.admin-scan-warning {
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: #3a2a12;
+  border: 1px solid #7a5f1e;
+  color: #ffe9b8;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Tab navigasi */
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-tab {
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid #2b3d5b;
+  background: #0e1726;
+  color: #b9c7de;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-tab-active {
+  background: #2f7fe0;
+  border-color: #2f7fe0;
+  color: #ffffff;
+}
+
+/* Ringkasan */
+.admin-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.admin-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #121c2f;
+  border: 1px solid #22314b;
+}
+
+.admin-stat-value {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.admin-stat-label {
+  font-size: 12.5px;
+  color: #9fb0cc;
+}
+
+.admin-stat-note {
+  font-size: 11.5px;
+  color: #7286a6;
+}
+
+.admin-level-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-level-item {
+  display: grid;
+  grid-template-columns: 74px 1fr 110px;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.admin-level-name {
+  color: #b9c7de;
+}
+
+.admin-level-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: #0e1726;
+  border: 1px solid #22314b;
+  overflow: hidden;
+}
+
+.admin-level-fill {
+  display: block;
+  height: 100%;
+  background: #2f7fe0;
+}
+
+.admin-level-value {
+  text-align: right;
+  color: #9fb0cc;
+}
+
+/* Filter */
+.admin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.admin-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12.5px;
+  color: #b9c7de;
+}
+
+.admin-filter-search {
+  flex: 1 1 240px;
+}
+
+.admin-filter input,
+.admin-filter select {
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid #2b3d5b;
+  background: #0e1726;
+  color: #e7eefc;
+  font-size: 13.5px;
+}
+
+.admin-filter input:focus,
+.admin-filter select:focus {
+  outline: none;
+  border-color: #4f9cf9;
+}
+
+/* Tabel */
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #1e2c44;
+  white-space: nowrap;
+}
+
+.admin-table th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #8fb4e8;
+}
+
+.admin-cell-name {
+  font-weight: 600;
+  color: #eaf1ff;
+}
+
+.admin-progress {
+  display: inline-block;
+  width: 80px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 999px;
+  background: #0e1726;
+  border: 1px solid #22314b;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.admin-progress-fill {
+  display: block;
+  height: 100%;
+  background: #3fb27f;
+}
+
+.admin-progress-text {
+  font-size: 12px;
+  color: #9fb0cc;
+}
+
+/* Pil status */
+.admin-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.admin-pill-in_progress {
+  background: #123a5a;
+  color: #9fd0ff;
+}
+
+.admin-pill-completed,
+.admin-pill-selesai {
+  background: #123f2c;
+  color: #9ff0c4;
+}
+
+.admin-pill-disconnected,
+.admin-pill-terputus {
+  background: #4a2317;
+  color: #ffc1a3;
+}
+
+.admin-pill-belum_mulai {
+  background: #2a3140;
+  color: #b9c7de;
+}
+
+.admin-pill-berjalan {
+  background: #123a5a;
+  color: #9fd0ff;
+}
+
+.admin-pass {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.admin-pass-yes {
+  color: #7ee0a9;
+}
+
+.admin-pass-no {
+  color: #ffb199;
+}
+
+/* Paginasi */
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.admin-page-info {
+  font-size: 12.5px;
+  color: #9fb0cc;
+}
+
+.admin-btn-sm {
+  padding: 7px 12px;
+  font-size: 12.5px;
+}
+
+/* Blok status */
+.admin-state {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 22px;
+  border-radius: 12px;
+  background: #121c2f;
+  border: 1px dashed #2b3d5b;
+  color: #b9c7de;
+  font-size: 13.5px;
+}
+
+.admin-state-loading {
+  flex-direction: row;
+  align-items: center;
+}
+
+.admin-state-title {
+  color: #eaf1ff;
+  font-size: 15px;
+}
+
+.admin-state-error {
+  border-style: solid;
+  border-color: #7a2b3c;
+  background: #2a1620;
+}
+
+.admin-state-denied {
+  border-style: solid;
+  border-color: #7a5a1e;
+  background: #2a2312;
+}
+
+.admin-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #2b3d5b;
+  border-top-color: #4f9cf9;
+  animation: admin-spin 0.8s linear infinite;
+}
+
+@keyframes admin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-spinner {
+    animation: none;
+  }
+}
+
+/* Detail siswa */
+.admin-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-detail-meta,
+.admin-session-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 12px 0 0;
+}
+
+.admin-detail-meta dt,
+.admin-session-meta dt {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #8fb4e8;
+}
+
+.admin-detail-meta dd,
+.admin-session-meta dd {
+  margin: 3px 0 0;
+  font-size: 14px;
+  color: #e7eefc;
+}
+
+.admin-session-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-session-title {
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.admin-session-sub {
+  font-size: 12.5px;
+  color: #9fb0cc;
+}
+
+/* ============================ RESPONSIF ============================ */
+
+@media (max-width: 900px) {
+  .admin-main {
+    padding: 18px 14px;
+  }
+
+  .admin-level-item {
+    grid-template-columns: 62px 1fr 96px;
+  }
+
+  .admin-stats {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-header {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .admin-user {
+    max-width: 150px;
+  }
+
+  .admin-tabs {
+    gap: 6px;
+  }
+
+  .admin-tab {
+    padding: 8px 12px;
+    font-size: 12.5px;
+  }
+
+  .admin-level-item {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .admin-level-value {
+    text-align: left;
+  }
+
+  .admin-filters {
+    flex-direction: column;
+  }
+
+  .admin-pagination {
+    justify-content: center;
+  }
+}
+
+@media (min-width: 1280px) {
+  .admin-main {
+    padding: 30px 32px;
+  }
+
+  .admin-card {
+    max-width: 1080px;
+  }
+}

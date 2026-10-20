@@ -13,7 +13,33 @@
    tidak perlu disentuh.
    ================================================================ */
 function go(s) { if (scene && scene !== s && scene.exit) scene.exit(); scene = s; toast = null; if (s.enter) s.enter(); }
-function startLevel(i) { const L = LEVELS[i]; if (!L) return; if (!(save.teacher || i < save.unlocked)) return; go(L.mk()); }
+function startLevel(i) { const L = LEVELS[i]; if (!L) return; if (!(save.teacher || i < save.unlocked)) return; mulaiSesiBackend(i + 1); go(L.mk()); }
+/* ---------- sinkronisasi sesi ke backend SINOVA (opsional) ----------
+   Dipanggil setiap kali siswa memulai level. Jembatan (window.SINOVA_BACKEND)
+   memastikan HANYA SATU sesi per "run" permainan: sesi dibuat sekali, lalu
+   level berikutnya hanya mengirim progres. Bila token tidak ada/kedaluwarsa,
+   sesi TIDAK dibuat dan pesan ramah ditampilkan (tanpa membuat token/sesi
+   baru otomatis). Bila jembatan tidak dipasang, game tetap jalan seperti biasa. */
+function mulaiSesiBackend(nomorLevel) {
+    try {
+        const b = (typeof window !== 'undefined') ? window.SINOVA_BACKEND : null;
+        if (!b || typeof b.beginLevel !== 'function') return;
+        Promise.resolve(b.beginLevel(nomorLevel)).then(function (hasil) {
+            if (hasil && hasil.ok) return;
+            const st = hasil && hasil.status;
+            if (st === 'missing_token' || st === 'missing_identity') say('Daftar ulang agar hasil belajar bisa tersimpan di server.', 'bad');
+            else if (st === 'unauthorized') say('Sesi belajar tidak valid. Daftar ulang untuk melanjutkan.', 'bad');
+            else if (st === 'network_error') say('Tidak dapat menghubungi server. Hasil akan diantrekan.', 'info');
+        }).catch(function () { /* biarkan permainan berlanjut */ });
+    } catch (e) { /* sinkronisasi opsional */ }
+}
+/* Jumlah hasil lokal yang belum terkonfirmasi server (0 bila tanpa jembatan). */
+function jumlahPendingBackend() {
+    try {
+        const b = (typeof window !== 'undefined') ? window.SINOVA_BACKEND : null;
+        return (b && typeof b.pendingCount === 'function') ? (b.pendingCount() | 0) : 0;
+    } catch (e) { return 0; }
+}
 
 const menuScene = {
     draw() {
@@ -31,6 +57,8 @@ const menuScene = {
             persist();
         }, { color: save.l2.grafis === 'hemat' ? C.warn : '#2b4360', tc: save.l2.grafis === 'hemat' ? '#1a1200' : C.text, s: 12 });
         if (!nameEl.value.trim()) txt('Isi nama siswa di atas kanvas agar hasil tercatat di log.', W / 2, 430, { s: 13, a: 'center', c: C.warn });
+        const nPending = jumlahPendingBackend();
+        if (nPending > 0) txt(nPending + ' hasil menunggu disinkronkan. Buka Log hasil untuk mengirim ulang.', W / 2, 452, { s: 13, a: 'center', c: C.acc });
     }
 };
 const levelsScene = {
@@ -106,6 +134,17 @@ const logScene = {
             try { navigator.clipboard.writeText(csv()).then(() => say('Log disalin. Tempel ke Excel atau Google Sheets.', 'ok'), () => say('Browser menolak akses clipboard. Coba buka halaman ini langsung di browser.', 'bad')); }
             catch (e) { say('Clipboard tidak tersedia di browser ini.', 'bad'); }
         }, { color: C.ok, s: 14 });
+        const nPending = jumlahPendingBackend();
+        if (nPending > 0) btn(380, 490, 240, 44, 'Kirim ulang (' + nPending + ')', () => {
+            const b = (typeof window !== 'undefined') ? window.SINOVA_BACKEND : null;
+            if (!b || typeof b.resendPending !== 'function') { say('Sinkronisasi tidak tersedia di mode ini.', 'info'); return; }
+            say('Mengirim ulang hasil ke server...', 'info');
+            Promise.resolve(b.resendPending()).then(function (h) {
+                if (h && h.terkirim > 0 && h.gagal === 0) say('Semua hasil berhasil dikirim (' + h.terkirim + ').', 'ok');
+                else if (h && h.terkirim > 0) say(h.terkirim + ' hasil terkirim, ' + h.gagal + ' masih tertunda.', 'info');
+                else say('Belum bisa mengirim hasil. Periksa koneksi atau daftar ulang.', 'bad');
+            }).catch(function () { say('Gagal mengirim hasil. Coba lagi nanti.', 'bad'); });
+        }, { color: C.acc, s: 14 });
         btn(W - 200, 490, 170, 44, 'Hapus log', () => { if (logScene.confirm) { save.log = []; persist(); logScene.confirm = false; say('Log dihapus.', 'info'); } else { logScene.confirm = true; say('Tekan Hapus log sekali lagi untuk konfirmasi.', 'bad'); } }, { color: logScene.confirm ? C.bad : '#475569', tc: logScene.confirm ? '#1a0505' : C.text, s: 14 });
         txt('Menampilkan 12 catatan terbaru dari ' + save.log.length + ' total.', W / 2, 564, { s: 12, a: 'center', c: C.mute });
     },

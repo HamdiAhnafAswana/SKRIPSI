@@ -6,6 +6,9 @@ import SinovaIdentityForm from './components/SinovaIdentityForm.jsx';
 import SinovaConfirmDialog from './components/SinovaConfirmDialog.jsx';
 import SinovaLeaderboard from './components/SinovaLeaderboard.jsx';
 import FullscreenButton from './components/FullscreenButton.jsx';
+// Jembatan ke engine game klasik (public/game/**) — dipasang ke window sebelum
+// skrip engine dimuat. Hanya mengekspos fungsi; token tidak pernah di global.
+import { installSinovaBridge } from './lib/sinovaBridge.js';
 
 // Vite menyuntikkan base deployment (mis. '/SKRIPSI/') — dipakai agar skrip
 // engine di folder public/ tetap ditemukan saat dipublikasikan di sub-folder.
@@ -72,6 +75,8 @@ export default function App() {
     let cancelled = false;
 
     async function loadGame() {
+      // Pasang jembatan lebih dulu agar sudah tersedia saat engine memanggilnya.
+      installSinovaBridge();
       try {
         for (const src of GAME_SCRIPTS) {
           if (cancelled) return;

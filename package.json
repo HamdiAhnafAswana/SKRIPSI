@@ -15,7 +15,6 @@
     "play4": "node tools/play4.mjs",
     "play5": "node tools/play5.mjs",
     "play4net": "node tools/play4net.mjs",
-
     "shot": "node tools/shot.mjs",
     "shot4": "node tools/shot4.mjs",
     "shotvp": "node tools/shot-viewport.mjs",
@@ -28,6 +27,7 @@
     "test": "vite build && node tools/verify.mjs && node tools/cari-asing.mjs && node tools/smoke.mjs && node tools/play2.mjs && node tools/play3.mjs && node tools/play4net.mjs && node tools/play4.mjs && node tools/play5.mjs && node tools/probe-geom.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
